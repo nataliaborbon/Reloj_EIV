@@ -19,10 +19,10 @@ SPDX-License-Identifier: MIT
 *********************************************************************************************************************/
 
 #ifndef DIGITAL_H_
-#define DIFITAL_H_
+#define DIGITAL_H_
 
 /** @file digital.h
- ** @brief Plantilla para la gestión de entradas y salidas digitales
+ ** @brief Módulo para la gestión de entradas y salidas digitales.
  **/
 
 /* === Headers files inclusions ==================================================================================== */
@@ -65,8 +65,6 @@ typedef struct digital_input_s * digital_input_t;
 /* === Public variable declarations ================================================================================ */
 
 /* === Public function declarations ================================================================================ */
-
-/* === Declaraciones de funciones públicas ======================================================================= */
 
 /**
  * @brief Crea una salida digital.
@@ -163,4 +161,4 @@ bool DigitalInputWasDeactivated(digital_input_t input);
 }
 #endif
 
-#endif /* DIGITAL_H_*/
+#endif /* DIGITAL_H_ */
