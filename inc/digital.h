@@ -80,7 +80,7 @@ digital_output_t DigitalOutputCreate(uint8_t gpio, uint8_t bit);
 /**
  * @brief Activa una salida digital.
  *
- * Esta función establece el pin correspondiente en estado alto (activo).
+ * Esta función establece el pin correspondiente en estado activo.
  *
  * @param output  Puntero a la instancia de la salida digital, obtenida mediante DigitalOutputCreate().
  */
@@ -89,7 +89,7 @@ void DigitalOutputActivate(digital_output_t output);
 /**
  * @brief Desactiva una salida digital.
  *
- * Esta función establece el pin correspondiente en estado bajo (inactivo).
+ * Esta función establece el pin correspondiente en estado inactivo.
  *
  * @param output  Puntero a la instancia de la salida digital, obtenida mediante DigitalOutputCreate().
  */

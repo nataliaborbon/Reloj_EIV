@@ -79,6 +79,7 @@ int main(void) {
         if (DigitalInputGetIsActive(board->tec_3)) {
             DigitalOutputActivate(board->led_red);
         }
+
         if (DigitalInputGetIsActive(board->tec_4)) {
             DigitalOutputDeactivate(board->led_red);
         }
