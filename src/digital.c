@@ -69,23 +69,67 @@ struct digital_input_s {
 
 /* === Public function implementation ============================================================================== */
 
-digital_output_t DigitalOutputCreate(uint8_t port, uint8_t pin) {
+digital_output_t DigitalOutputCreate(uint8_t gpio, uint8_t bit) {
     digital_output_t self = malloc(sizeof(struct digital_output_s));
     if (self != NULL) {
-        self->gpio = port;
-        self->bit = pin;
+        self->gpio = gpio;
+        self->bit = bit;
+        DigitalOutputDeactivate(self);
+        Chip_GPIO_SetPinDIR(LPC_GPIO_PORT, self->gpio, self->bit, true);
     }
     return self;
 }
 
 void DigitalOutputActivate(digital_output_t self) {
+    Chip_GPIO_SetPinState(LPC_GPIO_PORT, self->gpio, self->bit, true);
 }
 
 void DigitalOutputDeactivate(digital_output_t self) {
+    Chip_GPIO_SetPinState(LPC_GPIO_PORT, self->gpio, self->bit, false);
 }
 
 void DigitalOutputToggle(digital_output_t self) {
     Chip_GPIO_SetPinToggle(LPC_GPIO_PORT, self->gpio, self->bit);
+}
+
+digital_input_t DigitalInputCreate(uint8_t gpio, uint8_t bit, bool inverted) {
+    digital_input_t self = malloc(sizeof(struct digital_input_s));
+    if (self != NULL) {
+        self->gpio = gpio;
+        self->bit = bit;
+        self->inverted = inverted;
+        Chip_GPIO_SetPinDIR(LPC_GPIO_PORT, self->gpio, self->bit, false);
+        self->lastState = DigitalInputGetIsActive(self);
+    }
+    return self;
+}
+
+bool DigitalInputGetIsActive(digital_input_t self) {
+    bool state = Chip_GPIO_ReadPortBit(LPC_GPIO_PORT, self->gpio, self->bit) != 0;
+    if (self->inverted) {
+        state = !state;
+    }
+    return state;
+}
+
+digital_states_t DigitalInputWasChanged(digital_input_t self) {
+    digital_states_t result = DIGITAL_INPUT_NO_CHANGE;
+    bool state = DigitalInputGetIsActive(self);
+    if (state && !self->lastState) {
+        result = DIGITAL_INPUT_WAS_ACTIVATED;
+    } else if (!state && self->lastState) {
+        result = DIGITAL_INPUT_WAS_DEACTIVATED;
+    }
+    self->lastState = state;
+    return result;
+}
+
+bool DigitalInputWasActivated(digital_input_t self) {
+    return DIGITAL_INPUT_WAS_ACTIVATED == DigitalInputWasChanged(self);
+}
+
+bool DigitalInputWasDeactivated(digital_input_t self) {
+    return DIGITAL_INPUT_WAS_DEACTIVATED == DigitalInputWasChanged(self);
 }
 
 /* === End of documentation ======================================================================================== */
