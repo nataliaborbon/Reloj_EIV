@@ -24,7 +24,11 @@ SPDX-License-Identifier: MIT
 
 /* === Headers files inclusions ==================================================================================== */
 
+#include "config.h"
 #include "digital.h"
+#include "chip.h"
+#include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 /* === Macros definitions ========================================================================================== */
@@ -34,12 +38,25 @@ SPDX-License-Identifier: MIT
 /**
  * @brief Estructura que representa una salida digital.
  *
- * Contiene la información necesaria para identificar un pin de salida
- * en un determinado puerto del microcontrolador.
+ * Contiene la información necesaria para identificar un bit de salida
+ * en un determinado puerto GPIO del microcontrolador.
  */
 struct digital_output_s {
-    uint8_t port; /**< Número de puerto al que pertenece el pin. */
-    uint8_t pin;  /**< Número de pin dentro del puerto. */
+    uint8_t gpio; /**< Número de puerto GPIO al que pertenece el bit. */
+    uint8_t bit;  /**< Número de bit dentro del puerto. */
+};
+
+/**
+ * @brief Estructura que representa una entrada digital.
+ *
+ * Contiene la información necesaria para identificar un bit de entrada
+ * en un determinado puerto GPIO del microcontrolador.
+ */
+struct digital_input_s {
+    uint8_t gpio;   /**< Número de puerto gpio al que pertenece el bit. */
+    uint8_t bit;    /**< Número de bit dentro del puerto. */
+    bool inverted;  /**< Indica si la entrada es invertida o no */
+    bool lastState; /**< Último estado leído de la entrada */
 };
 
 /* === Private function declarations =============================================================================== */
@@ -55,8 +72,8 @@ struct digital_output_s {
 digital_output_t DigitalOutputCreate(uint8_t port, uint8_t pin) {
     digital_output_t self = malloc(sizeof(struct digital_output_s));
     if (self != NULL) {
-        self->port;
-        self->pin;
+        self->gpio = port;
+        self->bit = pin;
     }
     return self;
 }
@@ -68,6 +85,7 @@ void DigitalOutputDeactivate(digital_output_t self) {
 }
 
 void DigitalOutputToggle(digital_output_t self) {
+    Chip_GPIO_SetPinToggle(LPC_GPIO_PORT, self->gpio, self->bit);
 }
 
 /* === End of documentation ======================================================================================== */
