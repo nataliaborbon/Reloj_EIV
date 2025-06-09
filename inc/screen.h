@@ -18,21 +18,16 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 SPDX-License-Identifier: MIT
 *********************************************************************************************************************/
 
-#ifndef BSP_H_
-#define BSP_H_
+#ifndef SCREEN_H_
+#define SCREEN_H_
 
-/** @file bsp.h
- ** @brief Configuración básica del hardware de la placa
+/** @file screen.h
+ ** @brief Declaraciones del módulo para la gestión de una pantalla multiplexada de 7 segmentos.
  **/
 
 /* === Headers files inclusions ==================================================================================== */
 
-#include "digital.h"
-#include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
-#include "poncho.h"
-#include "screen.h"
 
 /* === Header for C++ compatibility ================================================================================ */
 
@@ -42,37 +37,40 @@ extern "C" {
 
 /* === Public macros definitions =================================================================================== */
 
+#define SEGMENT_A (1 << 0)
+#define SEGMENT_B (1 << 1)
+#define SEGMENT_C (1 << 2)
+#define SEGMENT_D (1 << 3)
+#define SEGMENT_E (1 << 4)
+#define SEGMENT_F (1 << 5)
+#define SEGMENT_G (1 << 6)
+#define SEGMENT_P (1 << 7)
+
 /* === Public data type declarations =============================================================================== */
 
-/**
- * @brief Puntero constante a una estructura que representa las entradas y salidas digitales de la placa.
- *
- * La estructura agrupa salidas digitales (LEDs) y entradas digitales (teclas).
- *
- */
-typedef struct board_s {
-    digital_output_t buzzer;   /**< Salida para el sumador */
-    digital_input_t set_time;  /**< Tecla Fijar hora */
-    digital_input_t set_alarm; /**< Tecla Fijar alarma */
-    digital_input_t decrement; /**< Tecla Decrementar */
-    digital_input_t increment; /**< Tecla Incrementar */
-    digital_input_t accept;    /**< Tecla Aceptar */
-    digital_input_t cancel;    /**< Tecla Cancelar */
-    screen_t screen;           /**< Display 7 segmentos */
-} const * const board_t;
+typedef struct screen_s * screen_t;
+
+typedef void (*digits_turn_off_t)(void);
+
+typedef void (*segments_update_t)(uint8_t);
+
+typedef void (*digit_turn_on_t)(uint8_t);
+
+typedef struct screen_driver_s {
+    digits_turn_off_t DigitsTurnOff;
+    segments_update_t SegmentsUpdate;
+    digit_turn_on_t DigitTurnOn;
+} const * screen_driver_t;
 
 /* === Public variable declarations ================================================================================ */
 
 /* === Public function declarations ================================================================================ */
 
-/**
- * @brief Crea una estructura con los periféricos de la placa.
- *
- * Inicializa el Led de salida, las teclas y el display, devuelve un puntero a la estructura que los contiene.
- *
- * @return Puntero a la estructura de la placa.
- */
-board_t BoardCreate(void);
+screen_t ScreenCreate(uint8_t digits, screen_driver_t driver);
+
+void ScreenWriteBCD(screen_t screen, uint8_t value[], uint8_t size);
+
+void ScreenRefresh(screen_t screen);
 
 /* === End of conditional blocks =================================================================================== */
 
@@ -80,4 +78,4 @@ board_t BoardCreate(void);
 }
 #endif
 
-#endif /* BSP_H_ */
+#endif /* SCREEN_H_ */
