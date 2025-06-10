@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "chip.h": "c",
+        "random": "c"
+    }
+}

@@ -41,18 +41,49 @@ SPDX-License-Identifier: MIT
 
 /* === Private function declarations =============================================================================== */
 
+/**
+ * @brief Apaga todos los dígitos y limpia segmentos.
+ */
 void DigitsTurnOff(void);
 
+/**
+ * @brief Actualiza el estado de los segmentos A-G y el punto decimal.
+ *
+ * @param value Máscara de bits que representa los segmentos encendidos.
+ */
 void SegmentsUpdate(uint8_t value);
 
+/**
+ * @brief Enciende un dígito específico del display.
+ *
+ * @param digit Índice del dígito a encender (0 a 3).
+ */
 void DigitTurnOn(uint8_t digit);
 
+/**
+ * @brief Inicializa los pines asociados a los dígitos del display.
+ */
 void DigitsInit();
 
+/**
+ * @brief Inicializa los pines asociados a los segmentos del display.
+ */
 void SegmentsInit();
+
+/**
+ * @brief Inicializa los pines asociados a los LEDs de la placa (RGB y externos).
+ *
+ * Configura la dirección y estado inicial de todos los LEDs disponibles,
+ * incluyendo los tres colores del LED RGB (R, G, B) y los LEDs externos (LED1, LED2, LED3).
+ */
+void LedsInit();
 
 /* === Private variable definitions ================================================================================ */
 
+/**
+ * @brief Estructura con funciones de control de hardware del display.
+ * Es pasada como driver al crear la pantalla.
+ */
 static const struct screen_driver_s screen_driver = {
     .DigitsTurnOff = DigitsTurnOff,
     .SegmentsUpdate = SegmentsUpdate,

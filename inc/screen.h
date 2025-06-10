@@ -37,6 +37,10 @@ extern "C" {
 
 /* === Public macros definitions =================================================================================== */
 
+/**
+ * @brief Definiciones de bits para cada segmento del display de 7 segmentos.
+ * Incluyen los segmentos A-G y el punto decimal (P).
+ */
 #define SEGMENT_A (1 << 0)
 #define SEGMENT_B (1 << 1)
 #define SEGMENT_C (1 << 2)
@@ -48,14 +52,29 @@ extern "C" {
 
 /* === Public data type declarations =============================================================================== */
 
+/**
+ * @brief Puntero a una estructura que representa una pantalla multiplexada de 7 segmentos.
+ */
 typedef struct screen_s * screen_t;
 
+/**
+ * @brief Puntero a función que apaga todos los dígitos del display.
+ */
 typedef void (*digits_turn_off_t)(void);
 
+/**
+ * @brief Puntero a función que actualiza los segmentos a encender.
+ */
 typedef void (*segments_update_t)(uint8_t);
 
+/**
+ * @brief Puntero a función que enciende un dígito específico.
+ */
 typedef void (*digit_turn_on_t)(uint8_t);
 
+/**
+ * @brief Estructura que agrupa las funciones de bajo nivel que controlan el hardware del display.
+ */
 typedef struct screen_driver_s {
     digits_turn_off_t DigitsTurnOff;
     segments_update_t SegmentsUpdate;
@@ -66,13 +85,66 @@ typedef struct screen_driver_s {
 
 /* === Public function declarations ================================================================================ */
 
+/**
+ * @brief Crea una nueva instancia de pantalla multiplexada.
+ *
+ * @param digits     Cantidad de dígitos que tiene el display.
+ * @param driver     Puntero a estructura con funciones específicas del hardware.
+ * @return screen_t  Puntero a la nueva instancia de pantalla.
+ */
 screen_t ScreenCreate(uint8_t digits, screen_driver_t driver);
 
+/**
+ * @brief Escribe un arreglo de valores BCD en el display.
+ *
+ * @param screen  Instancia de pantalla.
+ * @param value   Arreglo con los dígitos en formato BCD (0-9).
+ * @param size    Cantidad de dígitos a mostrar.
+ */
 void ScreenWriteBCD(screen_t screen, uint8_t value[], uint8_t size);
 
+/**
+ * @brief Refresca el estado de la pantalla.
+ *
+ * @param screen  Instancia de pantalla.
+ */
 void ScreenRefresh(screen_t screen);
 
+/**
+ * @brief Hace parpadear un rango de dígitos del display.
+ *
+ * @param screen   Instancia de pantalla.
+ * @param from     Dígito inicial del rango (inclusive).
+ * @param to       Dígito final del rango (inclusive).
+ * @param divisor  Frecuencia de parpadeo.
+ * @return int     0 si fue exitoso, -1 si hubo error.
+ */
 int DisplayFlashDigits(screen_t screen, uint8_t from, uint8_t to, uint16_t divisor);
+
+/**
+ * @brief Enciende el punto decimal de un dígito.
+ *
+ * @param screen  Instancia de pantalla.
+ * @param digit   Índice del dígito.
+ */
+void ScreenSetPoint(screen_t screen, uint8_t digit);
+
+/**
+ * @brief Apaga el punto decimal de un dígito.
+ *
+ * @param screen  Instancia de pantalla.
+ * @param digit   Índice del dígito.
+ */
+void ScreenClearPoint(screen_t screen, uint8_t digit);
+
+/**
+ * @brief Hace parpadear el punto decimal de un dígito.
+ *
+ * @param screen   Instancia de pantalla.
+ * @param digit    Índice del dígito.
+ * @param divisor  Frecuencia de parpadeo.
+ */
+void ScreenFlashPoint(screen_t screen, uint8_t digit, uint8_t divisor);
 
 /* === End of conditional blocks =================================================================================== */
 

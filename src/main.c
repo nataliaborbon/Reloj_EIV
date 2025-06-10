@@ -67,7 +67,10 @@ int main(void) {
     uint8_t value[4] = {1, 2, 3, 4};
 
     ScreenWriteBCD(board->screen, value, 4);
-    DisplayFlashDigits(board->screen, 1, 2, 50);
+    DisplayFlashDigits(board->screen, 0, 1, 50);
+    ScreenSetPoint(board->screen, 3);
+    ScreenFlashPoint(board->screen, 1, 10);
+
     while (true) {
         divisor++;
         if (divisor == 5) {
