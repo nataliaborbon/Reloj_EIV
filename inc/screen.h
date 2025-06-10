@@ -72,6 +72,8 @@ void ScreenWriteBCD(screen_t screen, uint8_t value[], uint8_t size);
 
 void ScreenRefresh(screen_t screen);
 
+int DisplayFlashDigits(screen_t screen, uint8_t from, uint8_t to, uint16_t divisor);
+
 /* === End of conditional blocks =================================================================================== */
 
 #ifdef __cplusplus
