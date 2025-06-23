@@ -34,13 +34,24 @@ SPDX-License-Identifier: MIT
 
 #define CLOCK_TICKS_PER_SECOND 5
 
+#define TEST_ASSERT_TIME(hours_tens, hours_units, minutes_tens, minutes_units, seconds_tens, seconds_units,            \
+                         current_time)                                                                                 \
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(seconds_units, current_time.bcd[0], "Difference in unit seconds");                 \
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(seconds_tens, current_time.bcd[1], "Difference in tens seconds");                  \
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(minutes_units, current_time.bcd[2], "Difference in unit minutes");                 \
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(minutes_tens, current_time.bcd[3], "Difference in tens minutes");                  \
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(hours_units, current_time.bcd[4], "Difference in unit hours");                     \
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(hours_tens, current_time.bcd[5], "Difference in tens hours");
+
 /* === Private data type declarations ========================================================== */
 
 /* === Private variable declarations =========================================================== */
 
+clock_t clock;
+
 /* === Private function declarations =========================================================== */
 
-void SimulatedSeconds(clock_t clock, uint8_t seconds) {
+static void SimulatedSeconds(clock_t clock, uint8_t seconds) {
     for (uint8_t i = 0; i < CLOCK_TICKS_PER_SECOND * seconds; i++) {
         ClockNewTick(clock);
     }
@@ -54,41 +65,38 @@ void SimulatedSeconds(clock_t clock, uint8_t seconds) {
 
 /* === Public function implementation ========================================================= */
 
+void setUp(void) {
+    clock = ClockCreate(CLOCK_TICKS_PER_SECOND);
+}
+
 void test_set_up_with_invalid_time(void) {
     clock_time_t current_time = {.bcd = {1, 2, 3, 4, 5, 6}};
 
-    clock_t clock = ClockCreate(CLOCK_TICKS_PER_SECOND);
-    TEST_ASSERT_FALSE(ClockGetTime(clock, &current_time));
+    clock_t clock_local = ClockCreate(CLOCK_TICKS_PER_SECOND);
+    TEST_ASSERT_FALSE(ClockGetTime(clock_local, &current_time));
     TEST_ASSERT_EACH_EQUAL_UINT8(0, current_time.bcd, 6);
 }
 
 void test_set_up_and_adjust_with_valid_time(void) {
-    static const clock_time_t new_time = {.time = {
-                                              .seconds = {1, 6},
-                                              .minutes = {0, 8},
-                                              .hours = {0, 0},
-                                          }};
+    clock_time_t new_time = {.time = {
+                                 .seconds = {0, 0},
+                                 .minutes = {0, 0},
+                                 .hours = {1, 0},
+                             }};
     clock_time_t current_time = {0};
 
-    clock_t clock = ClockCreate(CLOCK_TICKS_PER_SECOND);
     TEST_ASSERT_TRUE(ClockSetTime(clock, &new_time));
     TEST_ASSERT_TRUE(ClockGetTime(clock, &current_time));
-    TEST_ASSERT_EQUAL_UINT8_ARRAY(new_time.bcd, current_time.bcd, 6);
+    TEST_ASSERT_TIME(0, 1, 0, 0, 0, 0, current_time);
 }
 
 void test_clock_advance_one_second(void) {
     clock_time_t current_time = {0};
-    static const clock_time_t expected_value = {.time = {
-                                                    .seconds = {1, 0},
-                                                    .minutes = {0, 0},
-                                                    .hours = {0, 0},
-                                                }};
-    clock_t clock = ClockCreate(CLOCK_TICKS_PER_SECOND);
 
     ClockSetTime(clock, &(clock_time_t){0});
     SimulatedSeconds(clock, 1);
     ClockGetTime(clock, &current_time);
-    TEST_ASSERT_EQUAL_UINT8_ARRAY(expected_value.bcd, current_time.bcd, 6);
+    TEST_ASSERT_TIME(0, 0, 0, 0, 0, 1, current_time);
 }
 
 /* === End of documentation ==================================================================== */
