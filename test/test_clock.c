@@ -99,6 +99,15 @@ void test_clock_advance_one_second(void) {
     TEST_ASSERT_TIME(0, 0, 0, 0, 0, 1, current_time);
 }
 
+void test_clock_advance_ten_seconds(void) {
+    clock_time_t current_time = {0};
+
+    ClockSetTime(clock, &(clock_time_t){0});
+    SimulatedSeconds(clock, 10);
+    ClockGetTime(clock, &current_time);
+    TEST_ASSERT_TIME(0, 0, 0, 0, 1, 0, current_time);
+}
+
 /* === End of documentation ==================================================================== */
 
 /** @} End of module definition for doxygen */

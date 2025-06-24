@@ -40,6 +40,11 @@ extern "C" {
 
 /* === Public data type declarations =============================================================================== */
 
+typedef enum AlarmStates {
+    DISABLE, //!< Desactivar la alarma
+    ENABLE   //!< Habilitar la alarma
+} AlarmStates;
+
 typedef union {
     struct {
         uint8_t seconds[2];
@@ -62,6 +67,20 @@ bool ClockGetTime(clock_t clock, clock_time_t * result);
 bool ClockSetTime(clock_t clock, const clock_time_t * new_time);
 
 void ClockNewTick(clock_t clock);
+
+bool ClockIsCurrentTimeValid(clock_t clock);
+
+bool ClockSetAlarmTime(clock_t clock, const clock_time_t * alarm_time);
+
+bool ClockGetAlarmTime(clock_t clock, const clock_time_t * alarm_time);
+
+bool ClockSetAlarmState(clock_t clock, AlarmStates state);
+
+bool ClockIsAlarmEnabled(clock_t clock);
+
+void ClockSnoozeAlarm(clock_t clock, uint8_t minutes);
+
+void ClockFinishAlarm(clock_t clock);
 
 /* === End of conditional blocks =================================================================================== */
 
