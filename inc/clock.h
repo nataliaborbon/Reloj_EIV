@@ -39,6 +39,13 @@ extern "C" {
 /* === Public macros definitions =================================================================================== */
 
 /* === Public data type declarations =============================================================================== */
+typedef void (*alarm_activate_t)(void);
+typedef void (*alarm_deactivate_t)(void);
+
+typedef struct alarm_driver_s {
+    alarm_activate_t activate;
+    alarm_deactivate_t deactivate;
+} const * alarm_driver_t;
 
 typedef enum AlarmStates {
     DISABLE, //!< Desactivar la alarma
@@ -60,7 +67,7 @@ typedef struct clock_s * clock_t;
 
 /* === Public function declarations ================================================================================ */
 
-clock_t ClockCreate(uint16_t ticks_per_second);
+clock_t ClockCreate(uint16_t ticks_per_second, alarm_driver_t alarm_driver);
 
 bool ClockGetTime(clock_t clock, clock_time_t * result);
 
@@ -81,6 +88,8 @@ bool ClockIsAlarmEnabled(clock_t clock);
 void ClockSnoozeAlarm(clock_t clock, uint8_t minutes);
 
 void ClockFinishAlarm(clock_t clock);
+
+bool ClockIsAlarmRinging(clock_t clock);
 
 /* === End of conditional blocks =================================================================================== */
 

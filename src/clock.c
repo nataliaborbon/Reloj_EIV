@@ -36,7 +36,7 @@ typedef struct clock_s {
     clock_time_t current_time;
     clock_time_t alarm_time;
 
-    uint8_t alarm_delta;
+    uint16_t alarm_delta_minutes;
 
     uint16_t ticks_counter;
     uint8_t ticks_per_second;
@@ -44,13 +44,49 @@ typedef struct clock_s {
     bool is_valid_current_time;
     bool is_valid_alarm_time;
     bool is_alarm_enabled;
-    bool has_alarm_to_ring;
     bool is_alarm_ringing;
+
+    alarm_driver_t alarm_driver;
 };
 
 /* === Private function declarations =============================================================================== */
 
+static uint32_t BCDToSeconds(const clock_time_t * time) {
+    uint8_t hours = time->time.hours[0] + time->time.hours[1] * 10;
+    uint8_t minutes = time->time.minutes[0] + time->time.minutes[1] * 10;
+    uint8_t seconds = time->time.seconds[0] + time->time.seconds[1] * 10;
+
+    return (uint32_t)hours * 3600 + minutes * 60 + seconds;
+}
+
+static void SecondsToBCD(uint32_t totalSeconds, clock_time_t * time) {
+    if (time == NULL) {
+        return;
+    }
+
+    totalSeconds %= 24 * 3600;
+
+    uint8_t hours = totalSeconds / 3600;
+    uint8_t minutes = (totalSeconds % 3600) / 60;
+    uint8_t seconds = totalSeconds % 60;
+
+    time->time.hours[1] = hours / 10;
+    time->time.hours[0] = hours % 10;
+    time->time.minutes[1] = minutes / 10;
+    time->time.minutes[0] = minutes % 10;
+    time->time.seconds[1] = seconds / 10;
+    time->time.seconds[0] = seconds % 10;
+}
+
 static void IncrementTime(clock_t self) {
+    if (self == NULL || !self->is_valid_current_time) {
+        return;
+    }
+
+    uint32_t totalSeconds = BCDToSeconds(&self->current_time);
+    totalSeconds += 1;
+
+    SecondsToBCD(totalSeconds, &self->current_time);
 }
 
 static void checkAlarm(clock_t self) {
@@ -58,13 +94,19 @@ static void checkAlarm(clock_t self) {
         return;
     }
 
-    if (memcmp(&self->current_time, &self->alarm_time, sizeof(clock_time_t)) == 0) {
-        // GENERATE EVENT TO RING ALARM
+    clock_time_t alarm_time_with_delta = {0};
+
+    uint32_t alarm_time_seconds = BCDToSeconds(&self->alarm_time);
+    uint32_t alarm_time_seconds_with_delta = alarm_time_seconds + (self->alarm_delta_minutes * 60);
+    SecondsToBCD(alarm_time_seconds_with_delta, &alarm_time_with_delta);
+
+    if (memcmp(&self->current_time, &alarm_time_with_delta, sizeof(clock_time_t)) == 0) {
+        self->alarm_driver->activate();
         self->is_alarm_ringing = true;
     }
 }
 
-static bool IsValidClockTime(clock_time_t * time) {
+static bool IsValidClockTime(const clock_time_t * time) {
     uint8_t hourTens = time->time.hours[1];
     uint8_t hourUnits = time->time.hours[0];
     uint8_t minuteTens = time->time.minutes[1];
@@ -87,24 +129,25 @@ static bool IsValidClockTime(clock_time_t * time) {
 
 /* === Public function implementation ============================================================================== */
 
-clock_t ClockCreate(uint16_t ticks_per_second) {
+clock_t ClockCreate(uint16_t ticks_per_second, alarm_driver_t alarm_driver) {
     static struct clock_s self[1];
     memset(self, 0, sizeof(struct clock_s));
 
     self->is_valid_current_time = false;
     self->ticks_per_second = ticks_per_second;
     self->ticks_counter = 0;
-    self->alarm_delta = 0;
+    self->alarm_delta_minutes = 0;
 
     self->is_valid_alarm_time = false;
     self->is_alarm_enabled = false;
-    self->has_alarm_to_ring = false;
+
+    self->alarm_driver = alarm_driver;
 
     return self;
 }
 
 bool ClockGetTime(clock_t self, clock_time_t * result) {
-    if (result == NULL) {
+    if (result == NULL || self == NULL) {
         return false;
     };
 
@@ -119,7 +162,7 @@ bool ClockSetTime(clock_t self, const clock_time_t * new_time) {
 
     self->is_valid_current_time = IsValidClockTime(new_time);
     memcpy(&self->current_time, new_time, sizeof(clock_time_t));
-    return true;
+    return self->is_valid_current_time;
 }
 
 void ClockNewTick(clock_t self) {
@@ -130,6 +173,7 @@ void ClockNewTick(clock_t self) {
     self->ticks_counter++;
     if (self->ticks_counter >= self->ticks_per_second) {
         self->ticks_counter = 0;
+
         IncrementTime(self);
         checkAlarm(self);
     }
@@ -144,24 +188,22 @@ bool ClockIsCurrentTimeValid(clock_t self) {
 }
 
 bool ClockSetAlarmTime(clock_t self, const clock_time_t * alarm_time) {
-    if (self == NULL || alarm_time == NULL) {
+    if (self == NULL || alarm_time == NULL || !self->is_valid_current_time) {
         return false;
     }
 
     if (!IsValidClockTime(alarm_time)) {
         self->is_valid_alarm_time = false;
         self->is_alarm_enabled = false;
-        self->has_alarm_to_ring = false;
 
-        return false;
+        return self->is_valid_alarm_time;
     }
 
     memcpy(&self->alarm_time, alarm_time, sizeof(clock_time_t));
     self->is_valid_alarm_time = true;
     self->is_alarm_enabled = true;
-    self->has_alarm_to_ring = true;
 
-    return true;
+    return self->is_valid_alarm_time;
 }
 
 bool ClockGetAlarmTime(clock_t self, const clock_time_t * result) {
@@ -174,24 +216,22 @@ bool ClockGetAlarmTime(clock_t self, const clock_time_t * result) {
 }
 
 bool ClockSetAlarmState(clock_t self, AlarmStates state) {
-    if (self == NULL) {
+    if (self == NULL || !self->is_valid_alarm_time || !self->is_valid_current_time) {
         return false;
     }
 
     switch (state) {
     case ENABLE:
         self->is_alarm_enabled = true;
-        self->has_alarm_to_ring = true;
         break;
     case DISABLE:
         self->is_alarm_enabled = false;
-        self->has_alarm_to_ring = false;
         break;
     default:
         break;
     }
 
-    return true;
+    return self->is_alarm_enabled;
 }
 
 bool ClockIsAlarmEnabled(clock_t self) {
@@ -203,11 +243,13 @@ bool ClockIsAlarmEnabled(clock_t self) {
 }
 
 void ClockSnoozeAlarm(clock_t self, uint8_t minutes) {
-    if (self == NULL || !self->is_valid_alarm_time || !self->is_alarm_enabled) {
+    if (self == NULL || !self->is_valid_alarm_time || !self->is_alarm_enabled || !self->is_alarm_ringing) {
         return;
     }
 
-    // logica para posponer la alarma
+    self->alarm_delta_minutes += minutes;
+    self->is_alarm_ringing = false;
+    self->alarm_driver->deactivate();
 }
 
 void ClockFinishAlarm(clock_t self) {
@@ -216,9 +258,15 @@ void ClockFinishAlarm(clock_t self) {
     }
 
     self->is_alarm_ringing = false;
-    self->alarm_delta = 0;
-    // GENERETE EVENT TO FINISH ALARM
-    self->has_alarm_to_ring = false;
+    self->alarm_delta_minutes = 0;
+    self->alarm_driver->deactivate();
 }
 
+bool ClockIsAlarmRinging(clock_t self) {
+    if (self == NULL) {
+        return false;
+    }
+
+    return self->is_alarm_ringing;
+}
 /* === End of documentation ======================================================================================== */
