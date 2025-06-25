@@ -19,7 +19,7 @@ SPDX-License-Identifier: MIT
 *********************************************************************************************************************/
 
 /** @file clock.c
- ** @brief Plantilla para la creación de archivos de código fuente en lenguaje C
+ ** @brief Implementación del módulo reloj con alarma
  **/
 
 /* === Headers files inclusions ==================================================================================== */
@@ -32,25 +32,33 @@ SPDX-License-Identifier: MIT
 
 /* === Private data type declarations ============================================================================== */
 
+/**
+ * @brief Estructura interna que almacena el estado del reloj y la alarma
+ */
 typedef struct clock_s {
-    clock_time_t current_time;
-    clock_time_t alarm_time;
+    clock_time_t current_time; /**< Hora actual */
+    clock_time_t alarm_time;   /**< Hora configurada para la alarma */
 
-    uint16_t alarm_delta_minutes;
+    uint16_t alarm_delta_minutes; /**< Minutos adicionales de repetición (snooze) */
 
-    uint16_t ticks_counter;
-    uint8_t ticks_per_second;
+    uint16_t ticks_counter;   /**< Contador de ticks acumulados */
+    uint8_t ticks_per_second; /**< Número de ticks que conforman un segundo */
 
-    bool is_valid_current_time;
-    bool is_valid_alarm_time;
-    bool is_alarm_enabled;
-    bool is_alarm_ringing;
+    bool is_valid_current_time; /**< Indica si la hora actual es válida */
+    bool is_valid_alarm_time;   /**< Indica si la hora de alarma es válida */
+    bool is_alarm_enabled;      /**< Estado de habilitación de la alarma */
+    bool is_alarm_ringing;      /**< Indica si la alarma está sonando */
 
-    alarm_driver_t alarm_driver;
+    alarm_driver_t alarm_driver; /**< Driver para activar y desactivar la alarma */
 };
 
 /* === Private function declarations =============================================================================== */
 
+/**
+ * @brief Convierte una hora en formato BCD a segundos totales desde medianoche
+ * @param time Puntero a la estructura con hora en BCD
+ * @return Cantidad total de segundos representada por la hora
+ */
 static uint32_t BCDToSeconds(const clock_time_t * time) {
     uint8_t hours = time->time.hours[0] + time->time.hours[1] * 10;
     uint8_t minutes = time->time.minutes[0] + time->time.minutes[1] * 10;
@@ -59,6 +67,11 @@ static uint32_t BCDToSeconds(const clock_time_t * time) {
     return (uint32_t)hours * 3600 + minutes * 60 + seconds;
 }
 
+/**
+ * @brief Convierte segundos totales desde las 00:00 a formato BCD y los almacena en time
+ * @param totalSeconds Segundos totales a convertir (se toma módulo 24h)
+ * @param time Puntero a la estructura donde se almacenará la hora en BCD
+ */
 static void SecondsToBCD(uint32_t totalSeconds, clock_time_t * time) {
     if (time == NULL) {
         return;
@@ -78,6 +91,10 @@ static void SecondsToBCD(uint32_t totalSeconds, clock_time_t * time) {
     time->time.seconds[0] = seconds % 10;
 }
 
+/**
+ * @brief Incrementa la hora actual del reloj en un segundo
+ * @param self Instancia del reloj
+ */
 static void IncrementTime(clock_t self) {
     if (self == NULL || !self->is_valid_current_time) {
         return;
@@ -89,6 +106,10 @@ static void IncrementTime(clock_t self) {
     SecondsToBCD(totalSeconds, &self->current_time);
 }
 
+/**
+ * @brief Verifica si es momento de activar la alarma y la activa si corresponde
+ * @param self Instancia del reloj
+ */
 static void checkAlarm(clock_t self) {
     if (self == NULL || !self->is_valid_current_time || !self->is_valid_alarm_time || !self->is_alarm_enabled) {
         return;
@@ -106,6 +127,11 @@ static void checkAlarm(clock_t self) {
     }
 }
 
+/**
+ * @brief Valida que una estructura de tiempo contenga una hora válida
+ * @param time Puntero al tiempo a validar
+ * @return true si la hora es válida, false en caso contrario
+ */
 static bool IsValidClockTime(const clock_time_t * time) {
     uint8_t hourTens = time->time.hours[1];
     uint8_t hourUnits = time->time.hours[0];
@@ -269,4 +295,5 @@ bool ClockIsAlarmRinging(clock_t self) {
 
     return self->is_alarm_ringing;
 }
+
 /* === End of documentation ======================================================================================== */
