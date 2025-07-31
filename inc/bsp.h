@@ -51,7 +51,7 @@ extern "C" {
  *
  */
 typedef struct board_s {
-    digital_output_t buzzer;   /**< Salida para el sumador */
+    digital_output_t buzzer;   /**< Salida para el zumbador */
     digital_input_t set_time;  /**< Tecla Fijar hora */
     digital_input_t set_alarm; /**< Tecla Fijar alarma */
     digital_input_t decrement; /**< Tecla Decrementar */
@@ -59,7 +59,7 @@ typedef struct board_s {
     digital_input_t accept;    /**< Tecla Aceptar */
     digital_input_t cancel;    /**< Tecla Cancelar */
     screen_t screen;           /**< Display 7 segmentos */
-} const * const board_t;
+} const * board_t;
 
 /* === Public variable declarations ================================================================================ */
 
@@ -73,6 +73,8 @@ typedef struct board_s {
  * @return Puntero a la estructura de la placa.
  */
 board_t BoardCreate(void);
+
+void SisTick_Init(uint16_t ticks);
 
 /* === End of conditional blocks =================================================================================== */
 

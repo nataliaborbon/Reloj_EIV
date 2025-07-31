@@ -75,7 +75,7 @@ static const uint8_t IMAGES[10] = {
     SEGMENT_A | SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_F | SEGMENT_G,             // 6
     SEGMENT_A | SEGMENT_B | SEGMENT_C,                                                 // 7
     SEGMENT_A | SEGMENT_B | SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_F | SEGMENT_G, // 8
-    SEGMENT_A | SEGMENT_B | SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_F,             // 9
+    SEGMENT_A | SEGMENT_B | SEGMENT_C | SEGMENT_D | SEGMENT_F | SEGMENT_G,             // 9
 };
 
 /* === Public variable definitions ================================================================================= */
@@ -105,11 +105,10 @@ screen_t ScreenCreate(uint8_t digits, screen_driver_t driver) {
 
 void ScreenWriteBCD(screen_t self, uint8_t value[], uint8_t size) {
     memset(self->value, 0, sizeof(self->value));
-    if (size > self->digits) {
-        size = self->digits;
-    }
-    for (uint8_t i = 0; i < size; i++) {
-        self->value[i] = IMAGES[value[i]];
+    for (uint8_t i = 0; i < self->digits; i++) {
+        self->value[i] = IMAGES[value[size - 1 - i]];
+        if (size - 1 - i == 0)
+            break;
     }
 }
 

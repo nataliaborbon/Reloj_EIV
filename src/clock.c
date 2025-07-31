@@ -35,7 +35,7 @@ SPDX-License-Identifier: MIT
 /**
  * @brief Estructura interna que almacena el estado del reloj y la alarma
  */
-typedef struct clock_s {
+struct clock_s {
     clock_time_t current_time; /**< Hora actual */
     clock_time_t alarm_time;   /**< Hora configurada para la alarma */
 
@@ -232,7 +232,7 @@ bool ClockSetAlarmTime(clock_t self, const clock_time_t * alarm_time) {
     return self->is_valid_alarm_time;
 }
 
-bool ClockGetAlarmTime(clock_t self, const clock_time_t * result) {
+bool ClockGetAlarmTime(clock_t self, clock_time_t * result) {
     if (self == NULL || result == NULL) {
         return false;
     }
@@ -247,10 +247,10 @@ bool ClockSetAlarmState(clock_t self, AlarmStates state) {
     }
 
     switch (state) {
-    case ENABLE:
+    case ALARM_ENABLE:
         self->is_alarm_enabled = true;
         break;
-    case DISABLE:
+    case ALARM_DISABLE:
         self->is_alarm_enabled = false;
         break;
     default:

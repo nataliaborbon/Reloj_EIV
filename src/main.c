@@ -44,6 +44,7 @@
 #include <stdbool.h>
 #include "digital.h"
 #include "bsp.h"
+#include "clock.h"
 
 /* === Macros definitions ====================================================================== */
 
@@ -53,37 +54,74 @@
 
 /* === Private function declarations =========================================================== */
 
+void ActivarAlarma(void);
+
+void DesactivarAlarma(void);
+
 /* === Public variable definitions ============================================================= */
+
+static board_t board;
+
+static clock_t reloj;
+
+const struct alarm_driver_s mi_alarm_driver = {
+    .activate = ActivarAlarma,
+    .deactivate = DesactivarAlarma,
+};
 
 /* === Private variable definitions ============================================================ */
 
 /* === Private function implementation ========================================================= */
 
+void ActivarAlarma(void) {
+}
+
+void DesactivarAlarma(void) {
+}
+
 /* === Public function implementation ========================================================= */
 
+/*
 int main(void) {
-    board_t board = BoardCreate();
-    int divisor = 0;
-    uint8_t value[4] = {1, 2, 3, 4};
 
-    ScreenWriteBCD(board->screen, value, 4);
-    DisplayFlashDigits(board->screen, 0, 1, 50);
-    ScreenSetPoint(board->screen, 3);
-    ScreenFlashPoint(board->screen, 1, 10);
+    SisTick_Init(1);
 
-    while (true) {
-        divisor++;
-        if (divisor == 5) {
-            divisor = 0;
-        }
+    reloj = ClockCreate(1000, &mi_alarm_driver);
+    board = BoardCreate();
 
-        ScreenRefresh(board->screen);
+    clock_time_t value;
+
+    for (int index = 0; index < 100; index++) {
         for (int delay = 0; delay < 25000; delay++) {
             __asm("NOP");
         }
     }
+
+    ClockGetTime(reloj, &value);
+    __asm volatile("cpsid i");
+    ScreenWriteBCD(board->screen, value.bcd, 6);
+    __asm volatile("cpsid i");
+}
+*/
+void SysTick_Handler(void) {
+    ScreenRefresh(board->screen);
+    ClockNewTick(reloj);
 }
 
+int main(void) {
+    SisTick_Init(1000);
+    reloj = ClockCreate(1000, &mi_alarm_driver);
+    board = BoardCreate();
+
+    clock_time_t hora_inicial = {.bcd = {6, 3, 7, 5, 9, 1}};
+    ClockSetTime(reloj, &hora_inicial);
+
+    while (1) {
+        clock_time_t hora_actual;
+        ClockGetTime(reloj, &hora_actual);
+        ScreenWriteBCD(board->screen, hora_actual.bcd, 6);
+    }
+}
 /* === End of documentation ==================================================================== */
 
 /** @} End of module definition for doxygen */

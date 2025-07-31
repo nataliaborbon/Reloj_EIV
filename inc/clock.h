@@ -58,8 +58,8 @@ typedef struct alarm_driver_s {
  * @brief Estados posibles para la alarma
  */
 typedef enum AlarmStates {
-    DISABLE, //!< Desactiva la alarma
-    ENABLE   //!< Activa la alarma
+    ALARM_DISABLE, //!< Desactiva la alarma
+    ALARM_ENABLE   //!< Activa la alarma
 } AlarmStates;
 
 /**
@@ -134,7 +134,7 @@ bool ClockSetAlarmTime(clock_t clock, const clock_time_t * alarm_time);
  * @param result Puntero donde se almacenará la hora de la alarma
  * @return true si se obtuvo correctamente, false si no
  */
-bool ClockGetAlarmTime(clock_t clock, const clock_time_t * result);
+bool ClockGetAlarmTime(clock_t clock, clock_time_t * result);
 
 /**
  * @brief Habilita o deshabilita la alarma
