@@ -44,8 +44,9 @@ SPDX-License-Identifier: MIT
  * @brief Estructura que representa el estado de una pantalla multiplexada de 7 segmentos.
  */
 struct screen_s {
-    uint8_t digits;                      /**< Cantidad de dígitos manejados por la pantalla */
-    uint8_t current_digit;               /**< Índice del dígito actualmente activo */
+    uint8_t digits;        /**< Cantidad de dígitos manejados por la pantalla */
+    uint8_t current_digit; /**< Índice del dígito actualmente activo */
+    uint8_t flashing_freq;
     uint8_t flashing_from;               /**< Primer dígito que debe parpadear */
     uint8_t flashing_to;                 /**< Último dígito que debe parpadear */
     uint8_t digits_flash_freq;           /**< Frecuencia de parpadeo de dígitos */
@@ -93,6 +94,9 @@ screen_t ScreenCreate(uint8_t digits, screen_driver_t driver) {
         self->digits = digits;
         self->driver = driver;
         self->current_digit = 0;
+        self->flashing_freq = 0;
+        self->flashing_from = 0;
+        self->flashing_to = 3;
         self->digits_flash_freq = 0;
         self->digits_flash_count = 0;
         self->points_flash_freq = 0;
@@ -127,8 +131,15 @@ void ScreenRefresh(screen_t self) {
         }
     }
 
-    bool digits_visible = (self->digits_flash_count < (self->digits_flash_freq / 2));
-    bool points_visible = (self->points_flash_count < (self->points_flash_freq / 2));
+    bool digits_visible = true;
+    if (self->digits_flash_freq > 0) {
+        digits_visible = (self->digits_flash_count < (self->digits_flash_freq / 2));
+    }
+
+    bool points_visible = true;
+    if (self->points_flash_freq > 0) {
+        points_visible = (self->points_flash_count < (self->points_flash_freq / 2));
+    }
 
     segments = self->value[self->current_digit];
 

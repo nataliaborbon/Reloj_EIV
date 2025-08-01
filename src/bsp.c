@@ -271,6 +271,14 @@ board_t BoardCreate(void) {
         TeclasInit();
         BuzzerInit();
         self->screen = ScreenCreate(4, &screen_driver);
+
+        self->accept = DigitalInputCreate(KEY_ACCEPT_GPIO, KEY_ACCEPT_BIT, true);
+        self->cancel = DigitalInputCreate(KEY_CANCEL_GPIO, KEY_CANCEL_BIT, true);
+        self->set_time = DigitalInputCreate(KEY_F1_GPIO, KEY_F1_BIT, true);
+        self->set_alarm = DigitalInputCreate(KEY_F2_GPIO, KEY_F2_BIT, true);
+        self->increment = DigitalInputCreate(KEY_F4_GPIO, KEY_F4_BIT, true);
+        self->decrement = DigitalInputCreate(KEY_F3_GPIO, KEY_F3_BIT, true);
+        self->led = DigitalOutputCreate(LED_3_GPIO, LED_3_BIT);
     }
     return self;
 }

@@ -59,6 +59,7 @@ typedef struct board_s {
     digital_input_t accept;    /**< Tecla Aceptar */
     digital_input_t cancel;    /**< Tecla Cancelar */
     screen_t screen;           /**< Display 7 segmentos */
+    digital_output_t led;      /**< Salida para el led */
 } const * board_t;
 
 /* === Public variable declarations ================================================================================ */
