@@ -49,62 +49,76 @@
 
 /* === Macros definitions ====================================================================== */
 
-#define HOLD_TIME_MS 3000
-#define TOLERANCE    100
-#define INACTIVITY   30000
+#define HOLD_TIME_MS                                                                                                   \
+    3000 /**< Tiempo en milisegundos que debe mantenerse presionado un botón para entrar al modo de ajuste. */
+#define TOLERANCE 100 /**< Tolerancia en milisegundos para evitar repeticiones no deseadas de lectura de botones. */
+#define INACTIVITY                                                                                                     \
+    30000 /**< Tiempo en milisegundos sin interacción del usuario para volver al modo de visualización. */
 
-/* === Private data type declarations ========================================================== */
+/**
+ * @brief Modos de operación del reloj.
+ */
 typedef enum {
-    UNCONFIGURED,
-    SHOWING_TIME,
-    ADJUSTING_CURRENT_MINUTES,
-    ADJUSTING_CURRENT_HOURS,
-    ADJUSTING_ALARM_MINUTES,
-    ADJUSTING_ALARM_HOURS,
+    UNCONFIGURED,              /**< Estado inicial sin configuración. */
+    SHOWING_TIME,              /**< Mostrando la hora actual. */
+    ADJUSTING_CURRENT_MINUTES, /**< Modo de ajuste de los minutos actuales. */
+    ADJUSTING_CURRENT_HOURS,   /**< Modo de ajuste de las horas actuales. */
+    ADJUSTING_ALARM_MINUTES,   /**< Modo de ajuste de los minutos de la alarma. */
+    ADJUSTING_ALARM_HOURS,     /**< Modo de ajuste de las horas de la alarma. */
 } mode_t;
-
-/* === Private variable declarations =========================================================== */
 
 /* === Private function declarations =========================================================== */
 
+/**
+ * @brief Activa el indicador de la alarma.
+ * En este caso, activa un LED conectado al hardware.
+ */
 void ActivarAlarma(void);
 
+/**
+ * @brief Desactiva el indicador de la alarma.
+ * En este caso, apaga un LED conectado al hardware.
+ */
 void DesactivarAlarma(void);
 
 /* === Public variable definitions ============================================================= */
 
-static board_t board;
+static board_t board;            /**< Estructura que representa la placa de hardware. */
+static clock_t reloj;            /**< Puntero al objeto reloj. */
+static mode_t mode;              /**< Modo actual de funcionamiento del sistema. */
+static clock_time_t hour = {0};  /**< Variable auxiliar para almacenar la hora actual. */
+static clock_time_t alarm = {0}; /**< Variable auxiliar para almacenar la hora de la alarma. */
+clock_time_t adjusting = {0};    /**< Variable para almacenar la hora en proceso de ajuste. */
 
-static clock_t reloj;
+static volatile uint32_t miliseconds = 0;           /**< Contador global de milisegundos. */
+static volatile uint32_t key_set_time_duration = 0; /**< Tiempo que se mantuvo presionado el botón de ajuste de hora. */
+static volatile uint32_t key_set_alarm_duration =
+    0; /**< Tiempo que se mantuvo presionado el botón de ajuste de alarma. */
+static volatile uint32_t key_set_time_tolerance = 0;  /**< Tolerancia para el botón de ajuste de hora. */
+static volatile uint32_t key_set_alarm_tolerance = 0; /**< Tolerancia para el botón de ajuste de alarma. */
+static volatile uint32_t inactivity_count =
+    0; /**< Contador de inactividad para detectar falta de interacción del usuario. */
 
-static mode_t mode;
-
-static clock_time_t hour = {0};
-
-static clock_time_t alarm = {0};
-
-clock_time_t adjusting = {0};
-
-static volatile uint32_t miliseconds = 0;
-
-static volatile uint32_t key_set_time_duration = 0;
-
-static volatile uint32_t key_set_alarm_duration = 0;
-
-static volatile uint32_t key_set_time_tolerance = 0;
-
-static volatile uint32_t key_set_alarm_tolerance = 0;
-
-static volatile uint32_t inactivity_count = 0;
-
+/**
+ * @brief Implementación del driver de alarma que define las funciones de activación y desactivación.
+ */
 const struct alarm_driver_s mi_alarm_driver = {
-    .activate = ActivarAlarma,
-    .deactivate = DesactivarAlarma,
+    .activate = ActivarAlarma,     /**< Función utilizada para activar la alarma. */
+    .deactivate = DesactivarAlarma /**< Función utilizada para desactivar la alarma. */
 };
 
 /* === Private variable definitions ============================================================ */
 
+/**
+ * @brief Límite superior para los minutos en formato BCD.
+ * Representa 59 minutos (9 unidades, 5 decenas).
+ */
 static const uint8_t LIMIT_MINUTES[2] = {9, 5};
+
+/**
+ * @brief Límite superior para las horas en formato BCD.
+ * Representa 23 horas (3 unidades, 2 decenas).
+ */
 static const uint8_t LIMIT_HOURS[2] = {3, 2};
 
 /* === Private function implementation ========================================================= */
@@ -117,6 +131,12 @@ void DesactivarAlarma(void) {
     DigitalOutputDeactivate(board->led);
 }
 
+/**
+ * @brief Cambia el modo actual del sistema.
+ * También actualiza el estado visual del display según el modo seleccionado.
+ *
+ * @param value Modo al que se desea cambiar.
+ */
 void ChangeMode(mode_t value) {
     mode = value;
     switch (mode) {
@@ -127,6 +147,7 @@ void ChangeMode(mode_t value) {
         ScreenClearPoint(board->screen, 2);
         ScreenClearPoint(board->screen, 3);
         break;
+
     case SHOWING_TIME:
         DisplayFlashDigits(board->screen, 0, 0, 0);
         ScreenClearPoint(board->screen, 0);
@@ -137,8 +158,8 @@ void ChangeMode(mode_t value) {
         } else {
             ScreenClearPoint(board->screen, 3);
         }
-
         break;
+
     case ADJUSTING_CURRENT_MINUTES:
         DisplayFlashDigits(board->screen, 2, 3, 100);
         ScreenClearPoint(board->screen, 0);
@@ -146,6 +167,7 @@ void ChangeMode(mode_t value) {
         ScreenClearPoint(board->screen, 2);
         ScreenClearPoint(board->screen, 3);
         break;
+
     case ADJUSTING_CURRENT_HOURS:
         DisplayFlashDigits(board->screen, 0, 1, 100);
         ScreenClearPoint(board->screen, 0);
@@ -153,6 +175,7 @@ void ChangeMode(mode_t value) {
         ScreenClearPoint(board->screen, 2);
         ScreenClearPoint(board->screen, 3);
         break;
+
     case ADJUSTING_ALARM_MINUTES:
         DisplayFlashDigits(board->screen, 2, 3, 100);
         ScreenFlashPoint(board->screen, 0, 100);
@@ -160,6 +183,7 @@ void ChangeMode(mode_t value) {
         ScreenFlashPoint(board->screen, 2, 100);
         ScreenFlashPoint(board->screen, 3, 100);
         break;
+
     case ADJUSTING_ALARM_HOURS:
         DisplayFlashDigits(board->screen, 0, 1, 100);
         ScreenFlashPoint(board->screen, 0, 100);
@@ -167,13 +191,20 @@ void ChangeMode(mode_t value) {
         ScreenFlashPoint(board->screen, 2, 100);
         ScreenFlashPoint(board->screen, 3, 100);
         break;
+
     default:
         break;
     }
 }
 
+/**
+ * @brief Incrementa un valor BCD de dos dígitos.
+ * Si se supera el valor máximo, se reinicia a 00.
+ *
+ * @param value Arreglo BCD de dos elementos a incrementar.
+ * @param max   Valor máximo permitido (también en BCD).
+ */
 void IncrementBCD(uint8_t value[2], const uint8_t max[2]) {
-
     uint8_t current = value[1] * 10 + value[0];
     uint8_t maximum = max[1] * 10 + max[0];
 
@@ -186,6 +217,13 @@ void IncrementBCD(uint8_t value[2], const uint8_t max[2]) {
     value[0] = current % 10;
 }
 
+/**
+ * @brief Decrementa un valor BCD de dos dígitos (por ejemplo minutos u horas).
+ * Si llega a 00, vuelve al valor límite especificado.
+ *
+ * @param value Valor BCD a decrementar.
+ * @param limit Límite superior en BCD (por ejemplo, 23 horas o 59 minutos).
+ */
 void DecrementBCD(uint8_t value[2], const uint8_t limit[2]) {
     if (value[0] == 0) {
         value[0] = 9;
