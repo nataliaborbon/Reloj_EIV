@@ -38,6 +38,7 @@ SPDX-License-Identifier: MIT
 struct clock_s {
     clock_time_t current_time; /**< Hora actual */
     clock_time_t alarm_time;   /**< Hora configurada para la alarma */
+    clock_time_t snooze_time;  /** < Hora a la que se pospuso la alarma */
 
     uint16_t alarm_delta_minutes; /**< Minutos adicionales de repetición (snooze) */
 
@@ -48,6 +49,7 @@ struct clock_s {
     bool is_valid_alarm_time;   /**< Indica si la hora de alarma es válida */
     bool is_alarm_enabled;      /**< Estado de habilitación de la alarma */
     bool is_alarm_ringing;      /**< Indica si la alarma está sonando */
+    bool is_snooze_active;      /**< Indica si la alarma fue pospuesta */
 
     alarm_driver_t alarm_driver; /**< Driver para activar y desactivar la alarma */
 };
@@ -111,17 +113,20 @@ static void IncrementTime(clock_t self) {
  * @param self Instancia del reloj
  */
 static void checkAlarm(clock_t self) {
-    if (self == NULL || !self->is_valid_current_time || !self->is_valid_alarm_time || !self->is_alarm_enabled) {
+    if (self == NULL || !self->is_valid_current_time || !self->is_alarm_enabled || !self->is_valid_alarm_time) {
         return;
     }
 
-    clock_time_t alarm_time_with_delta = {0};
+    if (self->is_snooze_active) {
+        if (memcmp(&self->current_time, &self->snooze_time, sizeof(clock_time_t)) == 0) {
+            self->alarm_driver->activate();
+            self->is_alarm_ringing = true;
+            self->is_snooze_active = false;
+        }
+        return;
+    }
 
-    uint32_t alarm_time_seconds = BCDToSeconds(&self->alarm_time);
-    uint32_t alarm_time_seconds_with_delta = alarm_time_seconds + (self->alarm_delta_minutes * 60);
-    SecondsToBCD(alarm_time_seconds_with_delta, &alarm_time_with_delta);
-
-    if (memcmp(&self->current_time, &alarm_time_with_delta, sizeof(clock_time_t)) == 0) {
+    if (memcmp(&self->current_time, &self->alarm_time, sizeof(clock_time_t)) == 0) {
         self->alarm_driver->activate();
         self->is_alarm_ringing = true;
     }
@@ -166,6 +171,7 @@ clock_t ClockCreate(uint16_t ticks_per_second, alarm_driver_t alarm_driver) {
 
     self->is_valid_alarm_time = false;
     self->is_alarm_enabled = false;
+    self->is_snooze_active = false;
 
     self->alarm_driver = alarm_driver;
 
@@ -228,6 +234,7 @@ bool ClockSetAlarmTime(clock_t self, const clock_time_t * alarm_time) {
     memcpy(&self->alarm_time, alarm_time, sizeof(clock_time_t));
     self->is_valid_alarm_time = true;
     self->is_alarm_enabled = true;
+    self->is_snooze_active = false;
 
     return self->is_valid_alarm_time;
 }
@@ -273,7 +280,13 @@ void ClockSnoozeAlarm(clock_t self, uint8_t minutes) {
         return;
     }
 
-    self->alarm_delta_minutes += minutes;
+    self->alarm_delta_minutes = minutes;
+
+    uint32_t current_secs = BCDToSeconds(&self->current_time);
+    current_secs += minutes * 60;
+    SecondsToBCD(current_secs, &self->snooze_time);
+
+    self->is_snooze_active = true;
     self->is_alarm_ringing = false;
     self->alarm_driver->deactivate();
 }
@@ -285,6 +298,8 @@ void ClockFinishAlarm(clock_t self) {
 
     self->is_alarm_ringing = false;
     self->alarm_delta_minutes = 0;
+    self->is_snooze_active = false;
+
     self->alarm_driver->deactivate();
 }
 

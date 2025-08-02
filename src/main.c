@@ -50,7 +50,7 @@
 /* === Macros definitions ====================================================================== */
 
 #define HOLD_TIME_MS 3000
-#define TOLERANCE    50
+#define TOLERANCE    100
 #define INACTIVITY   30000
 
 /* === Private data type declarations ========================================================== */
@@ -110,9 +110,11 @@ static const uint8_t LIMIT_HOURS[2] = {3, 2};
 /* === Private function implementation ========================================================= */
 
 void ActivarAlarma(void) {
+    DigitalOutputActivate(board->led);
 }
 
 void DesactivarAlarma(void) {
+    DigitalOutputDeactivate(board->led);
 }
 
 void ChangeMode(mode_t value) {
@@ -130,7 +132,12 @@ void ChangeMode(mode_t value) {
         ScreenClearPoint(board->screen, 0);
         ScreenClearPoint(board->screen, 1);
         ScreenClearPoint(board->screen, 2);
-        ScreenClearPoint(board->screen, 3);
+        if (ClockIsAlarmEnabled(reloj)) {
+            ScreenSetPoint(board->screen, 3);
+        } else {
+            ScreenClearPoint(board->screen, 3);
+        }
+
         break;
     case ADJUSTING_CURRENT_MINUTES:
         DisplayFlashDigits(board->screen, 2, 3, 100);
@@ -166,15 +173,17 @@ void ChangeMode(mode_t value) {
 }
 
 void IncrementBCD(uint8_t value[2], const uint8_t max[2]) {
-    value[0]++;
-    if (value[0] > 9) {
-        value[0] = 0;
-        value[1]++;
+
+    uint8_t current = value[1] * 10 + value[0];
+    uint8_t maximum = max[1] * 10 + max[0];
+
+    current++;
+    if (current > maximum) {
+        current = 0;
     }
-    if (value[1] == max[1] && value[0] == max[0]) {
-        value[0] = 0;
-        value[1] = 0;
-    }
+
+    value[1] = current / 10;
+    value[0] = current % 10;
 }
 
 void DecrementBCD(uint8_t value[2], const uint8_t limit[2]) {
@@ -249,37 +258,63 @@ int main(void) {
     SisTick_Init(1000);
     reloj = ClockCreate(1000, &mi_alarm_driver);
     board = BoardCreate();
-    ClockSetTime(reloj, &hour);
-    ScreenWriteBCD(board->screen, hour.bcd, 6);
 
     ChangeMode(UNCONFIGURED);
 
     while (1) {
 
         if (DigitalInputWasActivated(board->accept)) {
-            if (mode == ADJUSTING_CURRENT_MINUTES) {
+            if (ClockIsAlarmRinging(reloj)) {
+                ClockSnoozeAlarm(reloj, 5);
+            }
+            switch (mode) {
+            case ADJUSTING_CURRENT_MINUTES:
                 ChangeMode(ADJUSTING_CURRENT_HOURS);
-            } else if (mode == ADJUSTING_CURRENT_HOURS) {
+                break;
+
+            case ADJUSTING_CURRENT_HOURS:
                 ClockSetTime(reloj, &adjusting);
                 ChangeMode(SHOWING_TIME);
-            }
+                break;
 
-            if (mode == ADJUSTING_ALARM_MINUTES) {
+            case ADJUSTING_ALARM_MINUTES:
                 ChangeMode(ADJUSTING_ALARM_HOURS);
-            } else if (mode == ADJUSTING_ALARM_HOURS) {
+                break;
+
+            case ADJUSTING_ALARM_HOURS:
                 ClockSetAlarmTime(reloj, &adjusting);
                 ClockGetAlarmTime(reloj, &alarm);
+                if (ClockIsCurrentTimeValid(reloj)) {
+                    ChangeMode(SHOWING_TIME);
+                } else {
+                    ChangeMode(UNCONFIGURED);
+                }
+                break;
+
+            case SHOWING_TIME:
+                ClockSetAlarmState(reloj, ALARM_ENABLE);
                 ChangeMode(SHOWING_TIME);
+                break;
+
+            default:
+                break;
             }
         }
 
         if (DigitalInputWasActivated(board->cancel)) {
-            if (ClockGetTime(reloj, &hour)) {
+            if (ClockIsAlarmRinging(reloj)) {
+                ClockFinishAlarm(reloj);
+            }
+            if (ClockIsCurrentTimeValid(reloj)) {
+                if (mode == SHOWING_TIME) {
+                    ClockSetAlarmState(reloj, ALARM_DISABLE);
+                }
                 ChangeMode(SHOWING_TIME);
             } else {
                 ChangeMode(UNCONFIGURED);
             }
         }
+
         if (key_set_time_duration == HOLD_TIME_MS) {
             ChangeMode(ADJUSTING_CURRENT_MINUTES);
             ClockGetTime(reloj, &hour);
@@ -333,7 +368,11 @@ int main(void) {
              mode == ADJUSTING_ALARM_MINUTES) &&
             (inactivity_count == INACTIVITY)) {
             inactivity_count = 0;
-            ChangeMode(SHOWING_TIME);
+            if (ClockIsCurrentTimeValid(reloj)) {
+                ChangeMode(SHOWING_TIME);
+            } else {
+                ChangeMode(UNCONFIGURED);
+            }
         }
     }
 }
