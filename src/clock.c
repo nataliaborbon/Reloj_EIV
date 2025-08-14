@@ -42,8 +42,8 @@ struct clock_s {
 
     uint16_t alarm_delta_minutes; /**< Minutos adicionales de repetición (snooze) */
 
-    uint16_t ticks_counter;   /**< Contador de ticks acumulados */
-    uint8_t ticks_per_second; /**< Número de ticks que conforman un segundo */
+    uint16_t ticks_counter;    /**< Contador de ticks acumulados */
+    uint16_t ticks_per_second; /**< Número de ticks que conforman un segundo */
 
     bool is_valid_current_time; /**< Indica si la hora actual es válida */
     bool is_valid_alarm_time;   /**< Indica si la hora de alarma es válida */

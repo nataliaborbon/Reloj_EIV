@@ -298,6 +298,7 @@ int main(void) {
     board = BoardCreate();
 
     ChangeMode(UNCONFIGURED);
+    ScreenWriteBCD(board->screen, hour.bcd, 6);
 
     while (1) {
 
