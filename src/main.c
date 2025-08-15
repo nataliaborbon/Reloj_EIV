@@ -49,16 +49,15 @@
 #include "bsp.h"
 #include "clock.h"
 #include <stdio.h>
+#include "globals.h"
+#include "keyboard.h"
+#include "control.h"
 
 /* === Macros definitions ====================================================================== */
 
-#define HOLD_TIME_MS                                                                                                   \
-    3000 /**< Tiempo en milisegundos que debe mantenerse presionado un botón para entrar al modo de ajuste. */
-#define TOLERANCE 100 /**< Tolerancia en milisegundos para evitar repeticiones no deseadas de lectura de botones. */
 #define INACTIVITY                                                                                                     \
     30000 /**< Tiempo en milisegundos sin interacción del usuario para volver al modo de visualización.              \
            */
-#define KEY_TASK_PERIOD_MS  10
 
 #define EVENT_KEY_ACCEPT    (1 << 0)
 #define EVENT_KEY_CANCEL    (1 << 1)
@@ -66,18 +65,6 @@
 #define EVENT_KEY_SET_ALARM (1 << 3)
 #define EVENT_KEY_INCREMENT (1 << 4)
 #define EVENT_KEY_DECREMENT (1 << 5)
-
-/**
- * @brief Modos de operación del reloj.
- */
-typedef enum {
-    UNCONFIGURED,              /**< Estado inicial sin configuración. */
-    SHOWING_TIME,              /**< Mostrando la hora actual. */
-    ADJUSTING_CURRENT_MINUTES, /**< Modo de ajuste de los minutos actuales. */
-    ADJUSTING_CURRENT_HOURS,   /**< Modo de ajuste de las horas actuales. */
-    ADJUSTING_ALARM_MINUTES,   /**< Modo de ajuste de los minutos de la alarma. */
-    ADJUSTING_ALARM_HOURS,     /**< Modo de ajuste de las horas de la alarma. */
-} mode_t;
 
 /* === Private function declarations =========================================================== */
 
@@ -95,18 +82,11 @@ void DesactivarAlarma(void);
 
 /* === Public variable definitions ============================================================= */
 
-static board_t board;                /**< Estructura que representa la placa de hardware. */
-static clock_t reloj;                /**< Puntero al objeto reloj. */
-static mode_t mode;                  /**< Modo actual de funcionamiento del sistema. */
 static clock_time_t hour = {0};      /**< Variable auxiliar para almacenar la hora actual. */
 static clock_time_t alarm = {0};     /**< Variable auxiliar para almacenar la hora de la alarma. */
 static clock_time_t adjusting = {0}; /**< Variable para almacenar la hora en proceso de ajuste. */
 
-EventGroupHandle_t key_events;
-
 static volatile uint32_t miliseconds = 0; /**< Contador global de milisegundos. */
-static volatile uint32_t inactivity_count =
-    0; /**< Contador de inactividad para detectar falta de interacción del usuario. */
 
 /**
  * @brief Implementación del driver de alarma que define las funciones de activación y desactivación.
@@ -115,14 +95,6 @@ const struct alarm_driver_s mi_alarm_driver = {
     .activate = ActivarAlarma,     /**< Función utilizada para activar la alarma. */
     .deactivate = DesactivarAlarma /**< Función utilizada para desactivar la alarma. */
 };
-
-typedef struct {
-    digital_input_t key;      // Tecla física
-    uint8_t event_bit;        // Bit de evento
-    uint32_t hold_ms;         // Tiempo para considerar "hold"
-    uint32_t pressed_count;   // Contador de tiempo presionado
-    uint32_t tolerance_count; // Contador de tolerancia
-} key_task_params_t;
 
 /* === Private variable definitions ============================================================ */
 
@@ -319,44 +291,6 @@ void ClockTickTask(void * pvParameters) {
     }
 }
 
-static void KeyTask(void * params) {
-    key_task_params_t * key = (key_task_params_t *)params;
-
-    while (true) {
-        bool active = !DigitalInputGetIsActive(key->key);
-        digital_states_t change = DigitalInputWasChanged(key->key);
-
-        if (key->hold_ms == 0) {
-            // Tecla instantánea
-            if (change == DIGITAL_INPUT_WAS_ACTIVATED) {
-                xEventGroupSetBits(key_events, key->event_bit);
-            }
-        } else {
-            // Tecla con hold
-            if (active) {
-                // Aumentar tiempo presionado
-                key->pressed_count += KEY_TASK_PERIOD_MS;
-                key->tolerance_count = 0;
-
-                if (key->pressed_count >= key->hold_ms) {
-                    xEventGroupSetBits(key_events, key->event_bit);
-                }
-            } else {
-                // Tecla liberada
-                if (key->tolerance_count < TOLERANCE) {
-                    key->pressed_count += KEY_TASK_PERIOD_MS;
-                    key->tolerance_count += KEY_TASK_PERIOD_MS;
-                } else {
-                    key->pressed_count = 0;
-                    key->tolerance_count = 0;
-                }
-            }
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(KEY_TASK_PERIOD_MS));
-    }
-}
-
 static void ControlTask(void * params) {
     (void)params;
 
@@ -503,70 +437,20 @@ static void ControlTask(void * params) {
     }
 }
 int main(void) {
-    // SisTick_Init(1000);
     SystemCoreClockUpdate();
 
     reloj = ClockCreate(1000, &mi_alarm_driver);
-    ChangeMode(0);
     board = BoardCreate();
+    ChangeMode(0);
 
-    static key_task_params_t keys[6] = {0};
-
-    // TECLA ACCEPT
-    keys[0].key = board->accept;
-    keys[0].event_bit = EVENT_KEY_ACCEPT;
-    keys[0].hold_ms = 0;
-    keys[0].pressed_count = 0;
-    keys[0].tolerance_count = 0;
-
-    // TECLA CANCEL
-    keys[1].key = board->cancel;
-    keys[1].event_bit = EVENT_KEY_CANCEL;
-    keys[1].hold_ms = 0;
-    keys[1].pressed_count = 0;
-    keys[1].tolerance_count = 0;
-
-    // TECLA SET TIME
-    keys[2].key = board->set_time;
-    keys[2].event_bit = EVENT_KEY_SET_TIME;
-    keys[2].hold_ms = HOLD_TIME_MS;
-    keys[2].pressed_count = 0;
-    keys[2].tolerance_count = 0;
-
-    // TECLA SET ALARM
-    keys[3].key = board->set_alarm;
-    keys[3].event_bit = EVENT_KEY_SET_ALARM;
-    keys[3].hold_ms = HOLD_TIME_MS;
-    keys[3].pressed_count = 0;
-    keys[3].tolerance_count = 0;
-
-    // TECLA INCREMENT
-    keys[4].key = board->increment;
-    keys[4].event_bit = EVENT_KEY_INCREMENT;
-    keys[4].hold_ms = 0;
-    keys[4].pressed_count = 0;
-    keys[4].tolerance_count = 0;
-
-    // TECLA DECREMENT
-    keys[5].key = board->decrement;
-    keys[5].event_bit = EVENT_KEY_DECREMENT;
-    keys[5].hold_ms = 0;
-    keys[5].pressed_count = 0;
-    keys[5].tolerance_count = 0;
-
-    key_events = xEventGroupCreate();
+    // Inicialización de teclado y creación de sus tareas
+    KeyboardInit(board);
 
     ScreenWriteBCD(board->screen, hour.bcd, 6);
 
     xTaskCreate(Blinking, "Prueba", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
     xTaskCreate(DisplayTask, "Display", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
     xTaskCreate(ClockTickTask, "ClockTick", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
-    xTaskCreate(KeyTask, "KeyAccept", 128, &keys[0], tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(KeyTask, "KeyCancel", 128, &keys[1], tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(KeyTask, "KeySetTime", 128, &keys[2], tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(KeyTask, "KeySetAlarm", 128, &keys[3], tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(KeyTask, "KeyIncrement", 128, &keys[4], tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(KeyTask, "KeyDecrement", 128, &keys[5], tskIDLE_PRIORITY + 1, NULL);
     xTaskCreate(ControlTask, "ClockControl", 512, NULL, tskIDLE_PRIORITY + 3, NULL);
     vTaskStartScheduler();
 
