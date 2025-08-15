@@ -1,4 +1,4 @@
-MODULES = 
+MODULES = module/freertos
 BOARD = edu-ciaa-nxp
 MUJU = ./muju
 
