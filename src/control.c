@@ -182,20 +182,34 @@ void ControlTask(void * params) {
         // --- TECLA ACCEPT ---
         if (events & EVENT_KEY_ACCEPT) {
             inactivity_count = 0;
+
+            if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+                if (ClockIsAlarmRinging(reloj)) {
+                    ClockSnoozeAlarm(reloj, 5); // Protegido
+                }
+                xSemaphoreGive(hour_mutex);
+            }
+
             switch (mode) {
             case ADJUSTING_CURRENT_MINUTES:
                 ChangeMode(ADJUSTING_CURRENT_HOURS);
                 break;
             case ADJUSTING_CURRENT_HOURS:
-                ClockSetTime(reloj, &adjusting);
+                if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+                    ClockSetTime(reloj, &adjusting); // Protegido
+                    xSemaphoreGive(hour_mutex);
+                }
                 ChangeMode(SHOWING_TIME);
                 break;
             case ADJUSTING_ALARM_MINUTES:
                 ChangeMode(ADJUSTING_ALARM_HOURS);
                 break;
             case ADJUSTING_ALARM_HOURS:
-                ClockSetAlarmTime(reloj, &adjusting);
-                ClockGetAlarmTime(reloj, &alarm);
+                if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+                    ClockSetAlarmTime(reloj, &adjusting); // Protegido
+                    ClockGetAlarmTime(reloj, &alarm);
+                    xSemaphoreGive(hour_mutex);
+                }
                 if (ClockIsCurrentTimeValid(reloj)) {
                     ChangeMode(SHOWING_TIME);
                 } else {
@@ -210,6 +224,14 @@ void ControlTask(void * params) {
         // --- TECLA CANCEL ---
         if (events & EVENT_KEY_CANCEL) {
             inactivity_count = 0;
+
+            if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+                if (ClockIsAlarmRinging(reloj)) {
+                    ClockFinishAlarm(reloj); // Protegido
+                }
+                xSemaphoreGive(hour_mutex);
+            }
+
             if (ClockIsCurrentTimeValid(reloj)) {
                 ChangeMode(SHOWING_TIME);
             } else {
@@ -221,60 +243,68 @@ void ControlTask(void * params) {
         if (events & EVENT_KEY_SET_TIME) {
             inactivity_count = 0;
             ChangeMode(ADJUSTING_CURRENT_MINUTES);
-            ClockGetTime(reloj, &hour);
-            adjusting = hour;
-            adjusting.bcd[0] = 0;
-            adjusting.bcd[1] = 0;
+
+            if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+                ClockGetTime(reloj, &hour); // Protegido
+                adjusting = hour;
+                adjusting.bcd[0] = 0;
+                adjusting.bcd[1] = 0;
+                xSemaphoreGive(hour_mutex);
+            }
         }
 
         // --- TECLA SET ALARM ---
         if (events & EVENT_KEY_SET_ALARM) {
             inactivity_count = 0;
             ChangeMode(ADJUSTING_ALARM_MINUTES);
-            adjusting = alarm;
-            adjusting.bcd[0] = 0;
-            adjusting.bcd[1] = 0;
+
+            if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+                adjusting = alarm; // Protegido
+                adjusting.bcd[0] = 0;
+                adjusting.bcd[1] = 0;
+                xSemaphoreGive(hour_mutex);
+            }
         }
 
         // --- TECLA INCREMENT ---
         if (events & EVENT_KEY_INCREMENT) {
             inactivity_count = 0;
-            switch (mode) {
-            case ADJUSTING_CURRENT_MINUTES:
-                IncrementBCD(adjusting.time.minutes, LIMIT_MIN);
-                break;
-            case ADJUSTING_ALARM_MINUTES:
-                IncrementBCD(adjusting.time.minutes, LIMIT_MIN);
-                break;
-            case ADJUSTING_CURRENT_HOURS:
-                IncrementBCD(adjusting.time.hours, LIMIT_HR);
-                break;
-            case ADJUSTING_ALARM_HOURS:
-                IncrementBCD(adjusting.time.hours, LIMIT_HR);
-                break;
-            default:
-                break;
+
+            if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+                switch (mode) {
+                case ADJUSTING_CURRENT_MINUTES:
+                case ADJUSTING_ALARM_MINUTES:
+                    IncrementBCD(adjusting.time.minutes, LIMIT_MIN);
+                    break;
+                case ADJUSTING_CURRENT_HOURS:
+                case ADJUSTING_ALARM_HOURS:
+                    IncrementBCD(adjusting.time.hours, LIMIT_HR);
+                    break;
+                default:
+                    break;
+                }
+                xSemaphoreGive(hour_mutex);
             }
         }
 
         // --- TECLA DECREMENT ---
         if (events & EVENT_KEY_DECREMENT) {
             inactivity_count = 0;
-            switch (mode) {
-            case ADJUSTING_CURRENT_MINUTES:
-                DecrementBCD(adjusting.time.minutes, LIMIT_MIN);
-                break;
-            case ADJUSTING_ALARM_MINUTES:
-                DecrementBCD(adjusting.time.minutes, LIMIT_MIN);
-                break;
-            case ADJUSTING_CURRENT_HOURS:
-                DecrementBCD(adjusting.time.hours, LIMIT_HR);
-                break;
-            case ADJUSTING_ALARM_HOURS:
-                DecrementBCD(adjusting.time.hours, LIMIT_HR);
-                break;
-            default:
-                break;
+
+            if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+                switch (mode) {
+                case ADJUSTING_CURRENT_MINUTES:
+                case ADJUSTING_ALARM_MINUTES:
+                    DecrementBCD(adjusting.time.minutes, LIMIT_MIN);
+                    break;
+                case ADJUSTING_CURRENT_HOURS:
+                case ADJUSTING_ALARM_HOURS:
+                    DecrementBCD(adjusting.time.hours, LIMIT_HR);
+                    break;
+                default:
+                    break;
+                }
+                xSemaphoreGive(hour_mutex);
             }
         }
 

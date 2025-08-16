@@ -44,6 +44,7 @@ EventGroupHandle_t key_events = NULL;
 clock_time_t hour = {0};
 clock_time_t alarm = {0};
 clock_time_t adjusting = {0};
+SemaphoreHandle_t hour_mutex = NULL;
 
 /* === Private function definitions ================================================================================ */
 

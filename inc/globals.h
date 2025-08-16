@@ -33,6 +33,7 @@ SPDX-License-Identifier: MIT
 #include "event_groups.h"
 #include "bsp.h"
 #include "clock.h"
+#include <semphr.h>
 
 /* === Header for C++ compatibility ================================================================================ */
 
@@ -74,6 +75,7 @@ extern EventGroupHandle_t key_events;      /**< Event group para eventos de tecl
 extern clock_time_t hour;                  /**< Hora actual del sistema */
 extern clock_time_t alarm;                 /**< Hora configurada para la alarma */
 extern clock_time_t adjusting;             /**< Valor temporal mientras se ajusta hora o alarma */
+extern SemaphoreHandle_t hour_mutex;       /**< Mutex para proteger las variables de hora, alarma y adjusting */
 
 /* === Public function declarations ================================================================================ */
 

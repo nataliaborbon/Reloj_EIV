@@ -93,38 +93,44 @@ void DesactivarAlarma(void) {
     DigitalOutputDeactivate(board->led);
 }
 
-void Blinking(void * parameters) {
-    while (true) {
-        // DigitalOutputToggle(board->led);
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
+// void Blinking(void * parameters) {
+//     while (true) {
+//         // DigitalOutputToggle(board->led);
+//         vTaskDelay(pdMS_TO_TICKS(500));
+//     }
+// }
 
 void DisplayTask(void * pvParameters) {
     TickType_t last = xTaskGetTickCount();
 
     while (1) {
         clock_time_t time_to_show;
-        ClockGetTime(reloj, &hour);
 
-        switch (mode) {
-        case SHOWING_TIME:
-            time_to_show = hour;
-            break;
-        case ADJUSTING_CURRENT_MINUTES:
-            time_to_show = adjusting;
-            break;
-        case ADJUSTING_CURRENT_HOURS:
-            time_to_show = adjusting;
-            break;
-        case ADJUSTING_ALARM_MINUTES:
-            time_to_show = adjusting;
-            break;
-        case ADJUSTING_ALARM_HOURS:
-            time_to_show = adjusting;
-            break;
-        default:
-            time_to_show = hour;
+        if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+
+            ClockGetTime(reloj, &hour);
+
+            switch (mode) {
+            case SHOWING_TIME:
+                time_to_show = hour;
+                break;
+            case ADJUSTING_CURRENT_MINUTES:
+                time_to_show = adjusting;
+                break;
+            case ADJUSTING_CURRENT_HOURS:
+                time_to_show = adjusting;
+                break;
+            case ADJUSTING_ALARM_MINUTES:
+                time_to_show = adjusting;
+                break;
+            case ADJUSTING_ALARM_HOURS:
+                time_to_show = adjusting;
+                break;
+            default:
+                time_to_show = hour;
+            }
+
+            xSemaphoreGive(hour_mutex);
         }
 
         ScreenWriteBCD(board->screen, time_to_show.bcd, 6);
@@ -146,13 +152,17 @@ void ClockTickTask(void * pvParameters) {
     TickType_t last = xTaskGetTickCount();
 
     while (1) {
-        ClockNewTick(reloj);
+        if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+
+            ClockNewTick(reloj);
+
+            xSemaphoreGive(hour_mutex);
+        }
 
         miliseconds++;
         if (miliseconds >= 1000) {
             miliseconds = 0;
         }
-
         vTaskDelayUntil(&last, pdMS_TO_TICKS(1));
     }
 }
@@ -169,7 +179,9 @@ int main(void) {
 
     ScreenWriteBCD(board->screen, hour.bcd, 6);
 
-    xTaskCreate(Blinking, "Prueba", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+    hour_mutex = xSemaphoreCreateMutex();
+
+    // xTaskCreate(Blinking, "Prueba", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
     xTaskCreate(DisplayTask, "Display", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
     xTaskCreate(ClockTickTask, "ClockTick", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
     xTaskCreate(ControlTask, "ClockControl", 512, NULL, tskIDLE_PRIORITY + 3, NULL);
