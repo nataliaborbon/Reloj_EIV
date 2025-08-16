@@ -121,6 +121,12 @@ void ChangeMode(mode_t value) {
         ScreenClearPoint(board->screen, 1);
         ScreenClearPoint(board->screen, 2);
         ScreenClearPoint(board->screen, 3);
+        if (ClockIsAlarmEnabled(reloj)) {
+            ScreenSetPoint(board->screen, 3);
+        } else {
+            ScreenClearPoint(board->screen, 3);
+        }
+        break;
         break;
 
     case ADJUSTING_CURRENT_MINUTES:
@@ -216,6 +222,13 @@ void ControlTask(void * params) {
                     ChangeMode(UNCONFIGURED);
                 }
                 break;
+            case SHOWING_TIME:
+                if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
+                    ClockSetAlarmState(reloj, ALARM_ENABLE); // Protegido
+                    xSemaphoreGive(hour_mutex);
+                }
+                ChangeMode(SHOWING_TIME);
+                break;
             default:
                 break;
             }
@@ -224,18 +237,22 @@ void ControlTask(void * params) {
         // --- TECLA CANCEL ---
         if (events & EVENT_KEY_CANCEL) {
             inactivity_count = 0;
-
             if (xSemaphoreTake(hour_mutex, portMAX_DELAY) == pdTRUE) {
-                if (ClockIsAlarmRinging(reloj)) {
-                    ClockFinishAlarm(reloj); // Protegido
-                }
-                xSemaphoreGive(hour_mutex);
-            }
 
-            if (ClockIsCurrentTimeValid(reloj)) {
-                ChangeMode(SHOWING_TIME);
-            } else {
-                ChangeMode(UNCONFIGURED);
+                if (ClockIsAlarmRinging(reloj)) {
+                    ClockFinishAlarm(reloj);
+                }
+
+                if (ClockIsCurrentTimeValid(reloj)) {
+                    if (mode == SHOWING_TIME) {
+                        ClockSetAlarmState(reloj, ALARM_DISABLE);
+                    }
+                    ChangeMode(SHOWING_TIME);
+                } else {
+                    ChangeMode(UNCONFIGURED);
+                }
+
+                xSemaphoreGive(hour_mutex);
             }
         }
 
@@ -326,4 +343,5 @@ void ControlTask(void * params) {
     }
 }
 
-/* === End of documentation ======================================================================================== */
+/* === End of documentation ========================================================================================
+ */
