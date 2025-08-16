@@ -22,26 +22,70 @@ SPDX-License-Identifier: MIT
 #define CONTROL_H_
 
 /** @file control.h
- ** @brief Plantilla para la creación de archivos de de cabeceras en lenguaje C
+ ** @brief Cabecera para manejar la máquina de estados del reloj, alarmas y ajuste de hora
+ **
+ ** Este módulo contiene las funciones y variables necesarias para controlar
+ ** el flujo de la aplicación del reloj, incluyendo:
+ **   - Cambiar modos de operación
+ **   - Incrementar y decrementar valores BCD de horas y minutos
+ **   - Gestionar la máquina de estados del reloj
+ **   - Ejecutar la tarea de control para las entradas de teclado
  **/
 
 /* === Headers files inclusions ==================================================================================== */
+#include <stdint.h>
+#include "globals.h"
+#include "clock.h"
 
 /* === Header for C++ compatibility ================================================================================ */
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* === Public macros definitions =================================================================================== */
+/** @brief Tiempo de inactividad en milisegundos para volver al modo SHOWING_TIME. */
+#define INACTIVITY 30000
 
 /* === Public data type declarations =============================================================================== */
 
 /* === Public variable declarations ================================================================================ */
 
-/* === Public function declarations ================================================================================ */
+/** @brief Estado actual de la máquina de estados */
+extern mode_t mode;
 
-/* === End of conditional blocks =================================================================================== */
+/** @brief Hora actual */
+extern clock_time_t hour;
+
+/** @brief Hora configurada para la alarma */
+extern clock_time_t alarm;
+
+/** @brief Hora en proceso de ajuste */
+extern clock_time_t adjusting;
+
+/** @brief Contador de milisegundos de inactividad */
+extern volatile uint32_t inactivity_count;
+
+/* === Public function declarations ================================================================================ */
+/**
+ * @brief Cambia el modo actual del reloj.
+ * @param value Modo al que se desea cambiar.
+ *
+ * Actualiza la máquina de estados y controla la visualización en pantalla
+ * según el modo seleccionado.
+ */
+void ChangeMode(mode_t value);
+
+/**
+ * @brief Tarea principal de control del reloj.
+ * @param params Parámetros de la tarea (no se usan, se ignoran).
+ *
+ * Esta función debe ejecutarse como una tarea FreeRTOS. Se encarga de:
+ *   - Leer eventos de teclado
+ *   - Cambiar modos de operación
+ *   - Ajustar hora y alarma
+ *   - Gestionar inactividad
+ */
+void ControlTask(void * params);
 
 #ifdef __cplusplus
 }

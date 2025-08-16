@@ -36,12 +36,15 @@ SPDX-License-Identifier: MIT
 
 /* === Public variable definitions ================================================================================= */
 
-clock_t reloj = {0};                    /**< Reloj principal */
-mode_t mode = 0;                        /**< Modo actual del sistema */
-volatile uint32_t inactivity_count = 0; /**< Contador global de inactividad */
-board_t board = NULL;                   /**< Puntero a la estructura principal del hardware */
-EventGroupHandle_t key_events = NULL;   /**< Event group para eventos de teclas *
-  
+clock_t reloj = {0};
+mode_t mode = 0;
+volatile uint32_t inactivity_count = 0;
+board_t board = NULL;
+EventGroupHandle_t key_events = NULL;
+clock_time_t hour = {0};
+clock_time_t alarm = {0};
+clock_time_t adjusting = {0};
+
 /* === Private function definitions ================================================================================ */
 
 /* === Public function implementation ============================================================================== */

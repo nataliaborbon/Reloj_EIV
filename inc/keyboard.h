@@ -40,16 +40,9 @@ extern "C" {
 
 /* === Public macros definitions =================================================================================== */
 
-#define KEY_TASK_PERIOD_MS  10   /**< Periodo de muestreo de las teclas en ms */
-#define HOLD_TIME_MS        3000 /**< Tiempo para considerar presionado un botón largo */
-#define TOLERANCE           100  /**< Tolerancia en ms para evitar rebotes de lectura */
-
-#define EVENT_KEY_ACCEPT    (1 << 0) /**< Evento tecla aceptar */
-#define EVENT_KEY_CANCEL    (1 << 1) /**< Evento tecla cancelar */
-#define EVENT_KEY_SET_TIME  (1 << 2) /**< Evento tecla ajustar hora */
-#define EVENT_KEY_SET_ALARM (1 << 3) /**< Evento tecla ajustar alarma */
-#define EVENT_KEY_INCREMENT (1 << 4) /**< Evento tecla incrementar valor */
-#define EVENT_KEY_DECREMENT (1 << 5) /**< Evento tecla decrementar valor */
+#define KEY_TASK_PERIOD_MS 10   /**< Periodo de muestreo de las teclas en ms */
+#define HOLD_TIME_MS       3000 /**< Tiempo para considerar presionado un botón largo */
+#define TOLERANCE          100  /**< Tolerancia en ms para evitar rebotes de lectura */
 
 /* === Public data type declarations =============================================================================== */
 typedef struct {

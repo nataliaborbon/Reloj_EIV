@@ -55,17 +55,6 @@
 
 /* === Macros definitions ====================================================================== */
 
-#define INACTIVITY                                                                                                     \
-    30000 /**< Tiempo en milisegundos sin interacción del usuario para volver al modo de visualización.              \
-           */
-
-#define EVENT_KEY_ACCEPT    (1 << 0)
-#define EVENT_KEY_CANCEL    (1 << 1)
-#define EVENT_KEY_SET_TIME  (1 << 2)
-#define EVENT_KEY_SET_ALARM (1 << 3)
-#define EVENT_KEY_INCREMENT (1 << 4)
-#define EVENT_KEY_DECREMENT (1 << 5)
-
 /* === Private function declarations =========================================================== */
 
 /**
@@ -82,10 +71,6 @@ void DesactivarAlarma(void);
 
 /* === Public variable definitions ============================================================= */
 
-static clock_time_t hour = {0};      /**< Variable auxiliar para almacenar la hora actual. */
-static clock_time_t alarm = {0};     /**< Variable auxiliar para almacenar la hora de la alarma. */
-static clock_time_t adjusting = {0}; /**< Variable para almacenar la hora en proceso de ajuste. */
-
 static volatile uint32_t miliseconds = 0; /**< Contador global de milisegundos. */
 
 /**
@@ -98,18 +83,6 @@ const struct alarm_driver_s mi_alarm_driver = {
 
 /* === Private variable definitions ============================================================ */
 
-/**
- * @brief Límite superior para los minutos en formato BCD.
- * Representa 59 minutos (9 unidades, 5 decenas).
- */
-static const uint8_t LIMIT_MINUTES[2] = {9, 5};
-
-/**
- * @brief Límite superior para las horas en formato BCD.
- * Representa 23 horas (3 unidades, 2 decenas).
- */
-static const uint8_t LIMIT_HOURS[2] = {3, 2};
-
 /* === Private function implementation ========================================================= */
 
 void ActivarAlarma(void) {
@@ -118,113 +91,6 @@ void ActivarAlarma(void) {
 
 void DesactivarAlarma(void) {
     DigitalOutputDeactivate(board->led);
-}
-
-/**
- * @brief Cambia el modo actual del sistema.
- * También actualiza el estado visual del display según el modo seleccionado.
- *
- * @param value Modo al que se desea cambiar.
- */
-void ChangeMode(mode_t value) {
-    mode = value;
-    switch (mode) {
-    case UNCONFIGURED:
-        DisplayFlashDigits(board->screen, 0, 3, 100);
-        ScreenClearPoint(board->screen, 0);
-        ScreenFlashPoint(board->screen, 1, 100);
-        ScreenClearPoint(board->screen, 2);
-        ScreenClearPoint(board->screen, 3);
-        break;
-
-    case SHOWING_TIME:
-        DisplayFlashDigits(board->screen, 0, 0, 0);
-        ScreenClearPoint(board->screen, 0);
-        ScreenClearPoint(board->screen, 1);
-        ScreenClearPoint(board->screen, 2);
-        if (ClockIsAlarmEnabled(reloj)) {
-            ScreenSetPoint(board->screen, 3);
-        } else {
-            ScreenClearPoint(board->screen, 3);
-        }
-        break;
-
-    case ADJUSTING_CURRENT_MINUTES:
-        DisplayFlashDigits(board->screen, 2, 3, 100);
-        ScreenClearPoint(board->screen, 0);
-        ScreenClearPoint(board->screen, 1);
-        ScreenClearPoint(board->screen, 2);
-        ScreenClearPoint(board->screen, 3);
-        break;
-
-    case ADJUSTING_CURRENT_HOURS:
-        DisplayFlashDigits(board->screen, 0, 1, 100);
-        ScreenClearPoint(board->screen, 0);
-        ScreenClearPoint(board->screen, 1);
-        ScreenClearPoint(board->screen, 2);
-        ScreenClearPoint(board->screen, 3);
-        break;
-
-    case ADJUSTING_ALARM_MINUTES:
-        DisplayFlashDigits(board->screen, 2, 3, 100);
-        ScreenFlashPoint(board->screen, 0, 100);
-        ScreenFlashPoint(board->screen, 1, 100);
-        ScreenFlashPoint(board->screen, 2, 100);
-        ScreenFlashPoint(board->screen, 3, 100);
-        break;
-
-    case ADJUSTING_ALARM_HOURS:
-        DisplayFlashDigits(board->screen, 0, 1, 100);
-        ScreenFlashPoint(board->screen, 0, 100);
-        ScreenFlashPoint(board->screen, 1, 100);
-        ScreenFlashPoint(board->screen, 2, 100);
-        ScreenFlashPoint(board->screen, 3, 100);
-        break;
-
-    default:
-        break;
-    }
-}
-
-/**
- * @brief Incrementa un valor BCD de dos dígitos.
- * Si se supera el valor máximo, se reinicia a 00.
- *
- * @param value Arreglo BCD de dos elementos a incrementar.
- * @param max   Valor máximo permitido (también en BCD).
- */
-void IncrementBCD(uint8_t value[2], const uint8_t max[2]) {
-    uint8_t current = value[1] * 10 + value[0];
-    uint8_t maximum = max[1] * 10 + max[0];
-
-    current++;
-    if (current > maximum) {
-        current = 0;
-    }
-
-    value[1] = current / 10;
-    value[0] = current % 10;
-}
-
-/**
- * @brief Decrementa un valor BCD de dos dígitos (por ejemplo minutos u horas).
- * Si llega a 00, vuelve al valor límite especificado.
- *
- * @param value Valor BCD a decrementar.
- * @param limit Límite superior en BCD (por ejemplo, 23 horas o 59 minutos).
- */
-void DecrementBCD(uint8_t value[2], const uint8_t limit[2]) {
-    if (value[0] == 0) {
-        value[0] = 9;
-        if (value[1] == 0) {
-            value[1] = limit[1];
-            value[0] = limit[0];
-        } else {
-            value[1]--;
-        }
-    } else {
-        value[0]--;
-    }
 }
 
 void Blinking(void * parameters) {
@@ -291,151 +157,6 @@ void ClockTickTask(void * pvParameters) {
     }
 }
 
-static void ControlTask(void * params) {
-    (void)params;
-
-    while (1) {
-        EventBits_t events = xEventGroupWaitBits(key_events,
-                                                 EVENT_KEY_ACCEPT | EVENT_KEY_CANCEL | EVENT_KEY_SET_TIME |
-                                                     EVENT_KEY_SET_ALARM | EVENT_KEY_INCREMENT | EVENT_KEY_DECREMENT,
-                                                 pdTRUE,  // Limpiar los bits leídos
-                                                 pdFALSE, // No esperar todos, con cualquiera alcanza
-                                                 0        // No bloquear, retorna inmediatamente
-        );
-
-        // TECLA ACCEPT
-        if (events & EVENT_KEY_ACCEPT) {
-            inactivity_count = 0;
-            if (ClockIsAlarmRinging(reloj)) {
-                ClockSnoozeAlarm(reloj, 5);
-            }
-            switch (mode) {
-            case ADJUSTING_CURRENT_MINUTES:
-                ChangeMode(ADJUSTING_CURRENT_HOURS);
-                break;
-            case ADJUSTING_CURRENT_HOURS:
-                ClockSetTime(reloj, &adjusting);
-                ChangeMode(SHOWING_TIME);
-                break;
-            case ADJUSTING_ALARM_MINUTES:
-                ChangeMode(ADJUSTING_ALARM_HOURS);
-                break;
-            case ADJUSTING_ALARM_HOURS:
-                ClockSetAlarmTime(reloj, &adjusting);
-                ClockGetAlarmTime(reloj, &alarm);
-                if (ClockIsCurrentTimeValid(reloj)) {
-                    ChangeMode(SHOWING_TIME);
-                } else {
-                    ChangeMode(UNCONFIGURED);
-                }
-                break;
-            case SHOWING_TIME:
-                ClockSetAlarmState(reloj, ALARM_ENABLE);
-                ChangeMode(SHOWING_TIME);
-                break;
-            default:
-                break;
-            }
-        }
-
-        // TECLA CANCEL
-        if (events & EVENT_KEY_CANCEL) {
-            inactivity_count = 0;
-            if (ClockIsAlarmRinging(reloj)) {
-                ClockFinishAlarm(reloj);
-            }
-            if (ClockIsCurrentTimeValid(reloj)) {
-                if (mode == SHOWING_TIME) {
-                    ClockSetAlarmState(reloj, ALARM_DISABLE);
-                }
-                ChangeMode(SHOWING_TIME);
-            } else {
-                ChangeMode(UNCONFIGURED);
-            }
-        }
-
-        // TECLA SET TIME
-        if (events & EVENT_KEY_SET_TIME) {
-            inactivity_count = 0;
-
-            ChangeMode(ADJUSTING_CURRENT_MINUTES);
-            ClockGetTime(reloj, &hour);
-            adjusting = hour;
-            adjusting.bcd[0] = 0;
-            adjusting.bcd[1] = 0;
-        }
-
-        // TECLA SET ALARM
-        if (events & EVENT_KEY_SET_ALARM) {
-            inactivity_count = 0;
-
-            ChangeMode(ADJUSTING_ALARM_MINUTES);
-            adjusting = alarm;
-            adjusting.bcd[0] = 0;
-            adjusting.bcd[1] = 0;
-        }
-
-        // TECLA INCREMENT
-        if (events & EVENT_KEY_INCREMENT) {
-            inactivity_count = 0;
-
-            switch (mode) {
-            case ADJUSTING_CURRENT_MINUTES:
-                IncrementBCD(adjusting.time.minutes, LIMIT_MINUTES);
-                break;
-            case ADJUSTING_ALARM_MINUTES:
-                IncrementBCD(adjusting.time.minutes, LIMIT_MINUTES);
-                break;
-            case ADJUSTING_CURRENT_HOURS:
-                IncrementBCD(adjusting.time.hours, LIMIT_HOURS);
-                break;
-            case ADJUSTING_ALARM_HOURS:
-                IncrementBCD(adjusting.time.hours, LIMIT_HOURS);
-                break;
-            default:
-                break;
-            }
-        }
-
-        // TECLA DECREMENT
-        if (events & EVENT_KEY_DECREMENT) {
-            inactivity_count = 0;
-
-            switch (mode) {
-            case ADJUSTING_CURRENT_MINUTES:
-                DecrementBCD(adjusting.time.minutes, LIMIT_MINUTES);
-                break;
-            case ADJUSTING_ALARM_MINUTES:
-                DecrementBCD(adjusting.time.minutes, LIMIT_MINUTES);
-                break;
-            case ADJUSTING_CURRENT_HOURS:
-                DecrementBCD(adjusting.time.hours, LIMIT_HOURS);
-                break;
-            case ADJUSTING_ALARM_HOURS:
-                DecrementBCD(adjusting.time.hours, LIMIT_HOURS);
-                break;
-            default:
-                break;
-            }
-        }
-
-        // INACTIVIDAD
-        inactivity_count++;
-        if (inactivity_count >= INACTIVITY) {
-            inactivity_count = 0;
-            if ((mode == ADJUSTING_CURRENT_HOURS || mode == ADJUSTING_CURRENT_MINUTES ||
-                 mode == ADJUSTING_ALARM_HOURS || mode == ADJUSTING_ALARM_MINUTES)) {
-                if (ClockIsCurrentTimeValid(reloj)) {
-                    ChangeMode(SHOWING_TIME);
-                } else {
-                    ChangeMode(UNCONFIGURED);
-                }
-            }
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(1));
-    }
-}
 int main(void) {
     SystemCoreClockUpdate();
 

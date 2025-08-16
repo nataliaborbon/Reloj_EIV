@@ -42,6 +42,13 @@ extern "C" {
 
 /* === Public macros definitions =================================================================================== */
 
+#define EVENT_KEY_ACCEPT    (1 << 0) /**< Evento tecla aceptar */
+#define EVENT_KEY_CANCEL    (1 << 1) /**< Evento tecla cancelar */
+#define EVENT_KEY_SET_TIME  (1 << 2) /**< Evento tecla ajustar hora */
+#define EVENT_KEY_SET_ALARM (1 << 3) /**< Evento tecla ajustar alarma */
+#define EVENT_KEY_INCREMENT (1 << 4) /**< Evento tecla incrementar valor */
+#define EVENT_KEY_DECREMENT (1 << 5) /**< Evento tecla decrementar valor */
+
 /* === Public data type declarations =============================================================================== */
 
 /**
@@ -64,6 +71,9 @@ extern mode_t mode;                        /**< Modo actual del sistema */
 extern volatile uint32_t inactivity_count; /**< Contador global de inactividad */
 extern board_t board;                      /**< Puntero a la estructura principal del hardware */
 extern EventGroupHandle_t key_events;      /**< Event group para eventos de teclas */
+extern clock_time_t hour;                  /**< Hora actual del sistema */
+extern clock_time_t alarm;                 /**< Hora configurada para la alarma */
+extern clock_time_t adjusting;             /**< Valor temporal mientras se ajusta hora o alarma */
 
 /* === Public function declarations ================================================================================ */
 
